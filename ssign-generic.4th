@@ -68,7 +68,7 @@ VARIABLE sha1.state            \ One of the following values
 [THEN]
 
 : sha1.store.bitcount ( msg.bytecount 8 -- )
-  * 
+  *
     sha1.><:64                 \ Message bitcount to big endian
     56 sha1.encbuf + ! ;
 
@@ -104,7 +104,7 @@ VARIABLE sha1.state            \ One of the following values
 \ Acquire a 32 bit value stored in big endian byte order.
 \ That value resides at byte offset 'index' times 4 from
 \ the base fixed size buffer 'sha1.w'.
-: sha1.getword32 ( index -- 32bitvalue )
+: sha1.getword:32 ( index -- 32bitvalue )
   4 * sha1.w +                 \ Pointing to byte 3
   DUP C@ $18 LSHIFT        SWAP 1+ \ Pointing to byte 2
   DUP C@ $10 LSHIFT ROT OR SWAP 1+ \ Pointing to byte 1
@@ -114,7 +114,7 @@ VARIABLE sha1.state            \ One of the following values
 \ Store '32bitvalue' in big endian byte order to the 'sha1.w'
 \ array. The first byte affected resides at byte offset 'index'
 \ times 4 from the base fixed size buffer 'sha1.w'.
-: sha1.putword32 ( 32bitvalue index -- )
+: sha1.putword:32 ( 32bitvalue index -- )
   4 * sha1.w +                 \ Pointing to byte 3
   OVER             $18 RSHIFT OVER C! 1+
   OVER $FF0000 AND $10 RSHIFT OVER C! 1+
@@ -149,12 +149,12 @@ VARIABLE sha1.state            \ One of the following values
 
   \ Extend the sixteen 32-bit words into eighty 32-bit words
   80 16 DO
-    i 3  - sha1.getword32
-    i 8  - sha1.getword32 XOR
-    i 14 - sha1.getword32 XOR
-    i 16 - sha1.getword32 XOR
+    i 3  - sha1.getword:32
+    i 8  - sha1.getword:32 XOR
+    i 14 - sha1.getword:32 XOR
+    i 16 - sha1.getword:32 XOR
     1 sha1.leftrotate:32
-    i sha1.putword32
+    i sha1.putword:32
   LOOP ;
 
 \ -------------------------------------------------------------
@@ -198,7 +198,7 @@ VARIABLE sha1.state            \ One of the following values
     sha1.+:32
       sha1.a @ 5 sha1.leftrotate:32 sha1.+:32
       sha1.e @ sha1.+:32
-      i sha1.getword32 sha1.+:32 \ aka sha1-temp
+      i sha1.getword:32 sha1.+:32 \ aka sha1-temp
     sha1.d @ sha1.e !
     sha1.c @ sha1.d !
     sha1.b @ 30 sha1.leftrotate:32 sha1.c !
@@ -283,7 +283,7 @@ VARIABLE sha1.state            \ One of the following values
     app.msglen @ sha1.total-bytecount @ <> ABORT" WTH?"
     app.msglen @ 8 sha1.store.bitcount
     sha1.state-completed sha1.state ! \ Update SHA1 state
-  THEN  
+  THEN
   TRUE ;                       \ Please do call us again!
 
 \ -------------------------------------------------------------
@@ -320,7 +320,7 @@ VARIABLE sha1.state            \ One of the following values
   app.msgbuf app.msgptr !
 
   >R                           \ R: skip-cell-count
-  DEPTH R@ DO
+  DEPTH R@ ?DO
     I PICK  app.msgptr @ !
     1 CELLS app.msgptr +!
     1 CELLS app.msglen +!
@@ -374,4 +374,3 @@ S" abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmn
 \ A49B2446:A02C645B:F419F995:B6709125:3A04A259
 
 [THEN]
-
