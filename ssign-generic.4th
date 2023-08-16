@@ -53,7 +53,7 @@ VARIABLE sha1.state            \ One of the following values
 : sha1.+:32 ( u32a u32b -- u32c ) + $FFFFFFFF AND ;
 
 : sha1.><:64 ( u1 -- u2 )
-[ sha1.is-little-endian C@ 0<> ] [IF]
+[ sha1.is-little-endian C@ ] [IF]
   >R
   R@                       56 LSHIFT      \ byte 0 to byte 7
   R@ $FF00             AND 40 LSHIFT OR   \ byte 1 to byte 6
@@ -82,7 +82,7 @@ VARIABLE sha1.state            \ One of the following values
 : sha1.+:32 + ;
 
 : sha1.><:32 ( u1 -- u2 )
-[ sha1.is-little-endian C@ 0<> ] [IF]
+[ sha1.is-little-endian C@ ] [IF]
   >R                           \ S: R: u1
   R@             $18 RSHIFT    \ u1:byte3 to u2:byte0
   R@ $FF0000 AND   8 RSHIFT OR \ u1:byte2 to u2:byte1
