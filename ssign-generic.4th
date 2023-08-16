@@ -336,7 +336,7 @@ VARIABLE sha1.state            \ One of the following values
 
 TRUE [IF]
 
-: target.status ( -- )
+: target-status ( -- )
   CR ." Target is "
   sha1.is64 IF S" 64" ELSE S" 32" THEN
   TYPE ."  bit "
@@ -348,7 +348,7 @@ TRUE [IF]
   app.msgbuf app.msgptr !
   .sha1.digest ;
 
-target.status
+target-status
 
 S" abc" CR digest-sliteral
 \ Expected output is:
