@@ -315,7 +315,7 @@ VARIABLE sha1.state            \ One of the following values
 \ - the current 512 bit block being operated on by
 \   sha1.digest-one-block.
 
-: SSIGN ( skip-cell-count ix -- ix )
+: SSIGN ( i*x skip-cell-count -- i*x )
   0 app.msglen !               \ expressed in bytes
   app.msgbuf app.msgptr !
 
