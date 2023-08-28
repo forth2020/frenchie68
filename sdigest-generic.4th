@@ -68,7 +68,7 @@ VARIABLE sha1.state            \ One of the following values
 [THEN]
 
 : sha1.store.bitcount ( msg.bytecount 8 -- )
-  *
+  * 
     sha1.><:64                 \ Message bitcount to big endian
     56 sha1.encbuf + ! ;
 
@@ -283,7 +283,7 @@ VARIABLE sha1.state            \ One of the following values
     app.msglen @ sha1.total-bytecount @ <> ABORT" WTH?"
     app.msglen @ 8 sha1.store.bitcount
     sha1.state-completed sha1.state ! \ Update SHA1 state
-  THEN
+  THEN  
   TRUE ;                       \ Please do call us again!
 
 \ -------------------------------------------------------------
@@ -315,7 +315,7 @@ VARIABLE sha1.state            \ One of the following values
 \ - the current 512 bit block being operated on by
 \   sha1.digest-one-block.
 
-: SSIGN ( i*x skip-cell-count -- i*x )
+: SDIGEST ( i*x skip-cell-count -- i*x )
   0 app.msglen !               \ expressed in bytes
   app.msgbuf app.msgptr !
 
@@ -341,7 +341,7 @@ TRUE [IF]
   sha1.is64 IF S" 64" ELSE S" 32" THEN
   TYPE ."  bit "
   sha1.is-little-endian C@ IF S" little" ELSE S" big" THEN
-  TYPE SPACE ." endian." ;
+  TYPE ."  endian." ;
 
 : digest-sliteral ( addr bytecount -- )
   DUP app.msglen ! app.msgbuf SWAP CMOVE
@@ -383,3 +383,4 @@ S" abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmn
 \ A49B2446:A02C645B:F419F995:B6709125:3A04A259
 
 [THEN]
+
