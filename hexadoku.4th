@@ -41,10 +41,10 @@
 \ cell value cannot be altered by mask application/filtering.
 \
 \ transaction: a set of saved states made immediately prior
-\ to an original speculative decision and all subsequently
-\ inferred changes before a dead end situation is detected or
-\ a nested speculative decision is made. This is the basis for
-\ an undo log buffer (aka transaction stack).
+\ to an original speculative decision and covering all
+\ subsequently inferred changes before a dead end situation is
+\ detected or a nested speculative decision is made. This is
+\ the basis for an undo log buffer (aka transaction stack).
 \
 \ A spot having zero for its value indicates a dead end in the
 \ current problem resolution state. This program strives to
@@ -367,16 +367,24 @@ $1000 , $2000 , $4000 , $8000 ,
 \ Visualization.
 
 \ Underline character rendition on.
-: +ul ( -- ) #27 EMIT ." [4m" ;
+: +ul ( -- )
+  stopon1st 0= IF EXIT THEN
+  #27 EMIT ." [4m" ;
 
 \ Underline character rendition off.
-: -ul ( #27 ) #27 EMIT ." [m" ;
+: -ul ( -- )
+  stopon1st 0= IF EXIT THEN
+  #27 EMIT ." [m" ;
 
 \ Turn off the cursor (VT200 control sequence).
-: -cursor ( -- ) #27 EMIT ." [?25l" ;
+: -cursor ( -- )
+  stopon1st 0= IF EXIT THEN
+  #27 EMIT ." [?25l" ;
 
 \ Turn on the cursor (VT200 control sequence).
-: +cursor ( -- ) #27 EMIT ." [?25h" ;
+: +cursor ( -- )
+  stopon1st 0= IF EXIT THEN
+  #27 EMIT ." [?25h" ;
 
 : mask>char ( mask -- char )
   DUP countbits                \ S: mask\nbits
@@ -455,13 +463,11 @@ $1000 , $2000 , $4000 , $8000 ,
   \ S: xcol\yrow\check\mask
   NIP -rot 2DROP FALSE ;
 
-\ If 'mask' is zero, it means that all cells in that 4x4
-\ quadrant are resolved (fixed points). Just return a success
-\ indication should such a condition occur.
 : setmask4 ( xcol yrow mask -- failure-flag )
-  ?DUP 0= IF
-    2DROP FALSE EXIT
-  THEN
+  \ If 'mask' is zero, it means that all cells in that 4x4
+  \ quadrant are resolved (fixed points). Just return a success
+  \ indication, should such a condition occur.
+  ?DUP 0= IF 2DROP FALSE EXIT THEN
 
   -rot                         \ S: mask\xcol\yrow
   4 0 DO                       \ J has dy
@@ -527,11 +533,9 @@ $1000 , $2000 , $4000 , $8000 ,
     THEN
   LOOP R> DROP NIP FALSE ;
 
-\ If 'mask' is zero. just return a success indication.
 : set-horiz-mask ( yrow mask -- failure-flag )
-  ?DUP 0= IF
-    DROP FALSE EXIT
-  THEN
+  \ If 'mask' is zero. just return a success indication.
+  ?DUP 0= IF DROP FALSE EXIT THEN
 
   SWAP
   16* CELLS grid +
@@ -549,8 +553,7 @@ $1000 , $2000 , $4000 , $8000 ,
     THEN
     \ S: mask\saddr
     CELL+
-  LOOP 2DROP FALSE ;
-
+  LOOP 2DROP FALSE ; 
 \ -------------------------------------------------------------
 \ Vertical exclusion/filtering.
 
@@ -579,11 +582,9 @@ $1000 , $2000 , $4000 , $8000 ,
     THEN
   LOOP R> DROP NIP FALSE ;
 
-\ If 'mask' is zero. just return a success indication.
 : set-vert-mask ( xcol mask -- failure-flag )
-  ?DUP 0= IF
-    DROP FALSE EXIT
-  THEN
+  \ If 'mask' is zero. just return a success indication.
+  ?DUP 0= IF DROP FALSE EXIT THEN
 
   SWAP
   CELLS grid +                 \ Beginning of column address
@@ -732,8 +733,7 @@ $1000 , $2000 , $4000 , $8000 ,
 
   infer 0= IF
     +cursor
-    CR ." No solutions"
-    ABORT
+    CR ." No solutions" QUIT
   THEN
 
   \ From here on, everything that could be inferred is in.
