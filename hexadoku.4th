@@ -417,7 +417,7 @@ $1000 , $2000 , $4000 , $8000 ,
   OVER countbits 1 = IF unknowns 1-! THEN
 
   logtrans IF                  \ Transaction is logged
-    DUP FALSE SWAP tstk-push
+    FALSE OVER tstk-push
   THEN
   |visual ! ;
 
