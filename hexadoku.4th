@@ -4,9 +4,17 @@
 \ not work by looking for a solution. It works by systematic
 \ refutation of possibilities leading to constraint violations.
 \ Eventually, a solution might emerge--or not. There could be
-\ several solutions to a weakly defined problem but this is
-\ not addressed by this code. It will stop when the first one
-\ is encountered.
+\ several solutions to a weakly defined problem.
+\
+\ This code can be operated as either a problem solver or as
+\ a potential puzzle validator (solutions enumerator/counter).
+\ The 'stopon1st' user tunable parameter selects which
+\ behaviour is to be achieved. If TRUE, the program will act
+\ as a solver, assuming that only one solution exists and
+\ display the solving progress incrementally. Otherwise, it
+\ will act as a puzzle verifier and only display the total
+\ number of solutions it was able to come across. Performance
+\ and statistical data will only be shown in the solver mode.
 \
 \ This code targets Z79Forth (2 byte cell). It can also be run
 \ under GNU Forth 0.7.3 (8 byte cell).
@@ -34,9 +42,9 @@
 \
 \ transaction: a set of saved states made immediately prior
 \ to an original speculative decision and all subsequently
-\ inferred changes before a dead end situation is detected.
-\ This is the basis for an undo log buffer (aka transaction
-\ stack).
+\ inferred changes before a dead end situation is detected or
+\ a nested speculative decision is made. This is the basis for
+\ an undo log buffer (aka transaction stack).
 \
 \ A spot having zero for its value indicates a dead end in the
 \ current problem resolution state. This program strives to
@@ -54,38 +62,39 @@ MARKER wasteit
 \ Following code block borrowed from GNU Forth 0.7.3 vt100.fs.
 IFZ7 : pn    BASE @ SWAP DECIMAL 0 U.R BASE ! ;
 IFZ7 : ;pn   [CHAR] ; EMIT pn ;
-IFZ7 : ESC[  #27 EMIT [CHAR] [ EMIT ;
-IFZ7 : AT-XY 1+ SWAP 1+ SWAP ESC[ pn ;pn [CHAR] H EMIT ;
+IFZ7 : esc[  #27 EMIT [CHAR] [ EMIT ;
+IFZ7 : AT-XY 1+ SWAP 1+ SWAP esc[ pn ;pn [CHAR] H EMIT ;
 
 IFZ7 : machdep-wait ;
-IFZ7 : CELL/ 1 RSHIFT ;
-IFZ7 : 2CELLS/ 2 RSHIFT ;
+IFZ7 : cell/ 1 RSHIFT ;
+IFZ7 : 2cells/ 2 RSHIFT ;
+IFZ7 : 2nip 2SWAP 2DROP ;
 
-IFGF : machdep-wait ( 1 MS ) ; \ For visual effect only!
-IFGF : CELL/ 3 RSHIFT ;
-IFGF : 2CELLS/ 4 RSHIFT ;
+IFGF : machdep-wait ( 5 MS ) ; \ For visual effect only!
+IFGF : cell/ 3 RSHIFT ;
+IFGF : 2cells/ 4 RSHIFT ;
 
 : 16* 4 LSHIFT ;
-: 16/MOD DUP $F AND SWAP 4 RSHIFT ;
+: 16/mod DUP $F AND SWAP 4 RSHIFT ;
 : 1+! 1 SWAP +! ;
 : 1-! -1 SWAP +! ;
 
 \ -------------------------------------------------------------
 \ Variables and constants.
 
+TRUE  CONSTANT stopon1st       \ User tunable. No vis. if FALSE
 FALSE VALUE logtrans   \ If NZ, log changes to the trans. stack
 BL CONSTANT wildc
 VARIABLE unknowns
+VARIABLE solutions
 
 CREATE grid 256 CELLS ALLOT    \ 16x16 is the problem size
 
 \ A transaction is the unit of rollbacks (undos). It is defined
-\ as the set of grid changes between the time we make a
-\ speculative choice and the present time or the time of a
-\ nested speculative choice (excluded).
-\ In general terms a transaction starts with a speculation
-\ and includes all the inferred changes to the grid--possibly
-\ up to an impossible situation, leading to a backtrack.
+\ as a set of grid saved states between the time we make a
+\ speculative choice and the time when a constraint violation
+\ is detected or when a nested speculative choice is made
+\ (excluded).
 
 4096 CONSTANT tstk-nitems
 CREATE tstack tstk-nitems 2* CELLS ALLOT
@@ -105,32 +114,41 @@ VARIABLE reclevmax             \ Maximum recursion level
 VARIABLE nbt                   \ # of backtracks
 CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 
-: D1+! DUP 2@ 1. D+ ROT 2! ;
+: d1+! DUP 2@ 1. D+ ROT 2! ;
 
 \ -------------------------------------------------------------
 \ Adapted from "Hacker's Delight" Second Edition
 \ by Henry S. Warren Jr., Edt by Addison-Wesley
 \ Chapter 5 "Counting bits", page 82.
 
-: _countbits ( uu -- #bits )
+: countbits ( uu -- #bits )
+  ncb d1+!
   DUP 1 RSHIFT $5555 AND -
   DUP $3333 AND SWAP 2 RSHIFT $3333 AND +
   DUP 4 RSHIFT + $0F0F AND
   DUP 8 RSHIFT +
   $1F AND ;
-: countbits ncb d1+! _countbits ;
 
-: 2^n ( n -- 2^n ) 1 SWAP LSHIFT ;
+\ Compute 2^n fast, i.e. faster than LSHIFT can do it.
+\ Note: 'n' is restricted to the [0..15] range.
+CREATE exptbl
+1     , 2     , 4     , 8     ,
+$10   , $20   , $40   , $80   ,
+$100  , $200  , $400  , $800  ,
+$1000 , $2000 , $4000 , $8000 ,
+
+: 2^n ( n -- 2^n ) CELLS exptbl + @ ;
 
 \ -------------------------------------------------------------
 \ Incremental grid visualization.
 
 : |visual ( val saddr -- val saddr )
-  OVER 0= ABORT" New value is 0!"
+  \ No visualization if looking for for multiple solutions.
+  stopon1st 0= IF EXIT THEN
 
   OVER countbits 1 <> IF
     wildc
-  ELSE                         \ Slot value is known
+  ELSE                         \ Spot value is known
     OVER 16 0 DO
       DUP I 2^n = IF
         DROP I
@@ -149,32 +167,32 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
   THEN
 
   \ Now to convert 'saddr' to x,y.
-  OVER grid - CELL/ 16/MOD   \ S: val\saddr\char-from-val\x\y
+  OVER grid - cell/ 16/mod   \ S: val\saddr\char-from-val\x\y
   SWAP 2* SWAP AT-XY EMIT machdep-wait ;
 
 \ -------------------------------------------------------------
 \ Transaction stack handling (undo log).
 
-: CELL- 1 CELLS - ;
+: cell- 1 CELLS - ;
 
 : tstk-push ( begin-flag ptr -- )
   \ We need exactly two cells. Is enough room available?
-  tstkp @ tstack - 2CELLS/ 0=
+  tstkp @ tstack - 2cells/ 0=
     ABORT" Transaction stack overflow"
 
   \ Extract x and y from the 'ptr' pointer.
   DUP >R
-  grid - CELL/ 16/MOD          \ S: begin-flag\x\y
+  grid - cell/ 16/mod          \ S: begin-flag\x\y
   SWAP ROT                     \ S: y\x\begin-flag
   IF $80 OR THEN
   8 LSHIFT OR
 
-       tstkp @ CELL- DUP tstkp ! !
-  R> @ tstkp @ CELL- DUP tstkp ! ! ;
+       tstkp @ cell- DUP tstkp ! !
+  R> @ tstkp @ cell- DUP tstkp ! ! ;
 
 : tstk-pop ( -- begin-flag )
   \ At least two cells need to be stacked up.
-  tstk-bottom tstkp @ - 2CELLS/ 0=
+  tstk-bottom tstkp @ - 2cells/ 0=
     ABORT" Transaction stack underflow"
 
   tstkp @ DUP @ >R             \ R: bitmsk, S: tsktp@
@@ -221,6 +239,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
   LOOP 2DROP ;
 
 : inits ( -- )
+  0 solutions !
   256 unknowns !
   grid 256 0 DO
     DUP $FFFF SWAP !
@@ -250,48 +269,48 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 \ S" ....:....:....:...." 15 initline
 
   \ Elektor data set from the May/June, 2023 issue.
-  S" E2.A:0..B:.F.C:649." 0  initline
-  S" .C.F:158.:...0:.BA7" 1  initline
-  S" ..1.:..4.:....:.8.2" 2  initline
-  S" 834.:..CD:.7BE:.01." 3  initline
+\ S" E2.A:0..B:.F.C:649." 0  initline
+\ S" .C.F:158.:...0:.BA7" 1  initline
+\ S" ..1.:..4.:....:.8.2" 2  initline
+\ S" 834.:..CD:.7BE:.01." 3  initline
 
-  S" ..F8:....:...3:..29" 4  initline
-  S" 7.23:..1.:..9B:D..A" 5  initline
-  S" .6..:.D.8:.AE.:5..." 6  initline
-  S" .1..:5..6:.8.D:...." 7  initline
+\ S" ..F8:....:...3:..29" 4  initline
+\ S" 7.23:..1.:..9B:D..A" 5  initline
+\ S" .6..:.D.8:.AE.:5..." 6  initline
+\ S" .1..:5..6:.8.D:...." 7  initline
 
-  S" .7..:A..3:.E.6:...." 8  initline
-  S" .D..:.6.2:.B3.:8..." 9  initline
-  S" 3.96:..5.:..7F:1..0" 10 initline
-  S" ..05:....:...9:..76" 11 initline
+\ S" .7..:A..3:.E.6:...." 8  initline
+\ S" .D..:.6.2:.B3.:8..." 9  initline
+\ S" 3.96:..5.:..7F:1..0" 10 initline
+\ S" ..05:....:...9:..76" 11 initline
 
-  S" 09E.:..2A:.3F5:.C6." 12 initline
-  S" ..7.:..6.:....:.5.3" 13 initline
-  S" .8.C:F73.:...1:.D0B" 14 initline
-  S" 5F.4:8..0:.6.2:A7E." 15 initline
+\ S" 09E.:..2A:.3F5:.C6." 12 initline
+\ S" ..7.:..6.:....:.5.3" 13 initline
+\ S" .8.C:F73.:...1:.D0B" 14 initline
+\ S" 5F.4:8..0:.6.2:A7E." 15 initline
 
   \ Elektor data set from the July/August, 2023 issue.
-\ S" D.16:0.27:.A..:...B" 0  initline
-\ S" .3..:....:0182:7..." 1  initline
-\ S" 5.F.:...4:3B.D:..0A" 2  initline
-\ S" A...:.35.:...F:..4." 3  initline
+  S" D.16:0.27:.A..:...B" 0  initline
+  S" .3..:....:0182:7..." 1  initline
+  S" 5.F.:...4:3B.D:..0A" 2  initline
+  S" A...:.35.:...F:..4." 3  initline
 
-\ S" 3...:4..1:9C..:E..." 4  initline
-\ S" ...1:.B..:6...:.C8." 5  initline
-\ S" 6..5:..90:A8..:.DF." 6  initline
-\ S" 0.A.:C.D.:..1.:4567" 7  initline
+  S" 3...:4..1:9C..:E..." 4  initline
+  S" ...1:.B..:6...:.C8." 5  initline
+  S" 6..5:..90:A8..:.DF." 6  initline
+  S" 0.A.:C.D.:..1.:4567" 7  initline
 
-\ S" .D6.:84F.:.E..:2..." 8  initline
-\ S" 2E8.:5.0.:74..:61.." 9  initline
-\ S" .F..:...6:..2B:..5." 10 initline
-\ S" .504:....:..9.:C.E8" 11 initline
+  S" .D6.:84F.:.E..:2..." 8  initline
+  S" 2E8.:5.0.:74..:61.." 9  initline
+  S" .F..:...6:..2B:..5." 10 initline
+  S" .504:....:..9.:C.E8" 11 initline
 
-\ S" .6..:9..3:C7.0:...." 12 initline
-\ S" ....:.542:.9..:...." 13 initline
-\ S" ..52:.0EA:..D8:..B." 14 initline
-\ S" 8.9.:...F:...4:...6" 15 initline
+  S" .6..:9..3:C7.0:...." 12 initline
+  S" ....:.542:.9..:...." 13 initline
+  S" ..52:.0EA:..D8:..B." 14 initline
+  S" 8.9.:...F:...4:...6" 15 initline
 
-  \ Elektor data set from the HS #4, 2023 issue.
+  \ Elektor data set from the Holiday Circuits #4, 2023 issue.
   \ Solved by inference only. No speculation required!!!
 \ S" F02C:D1..:..48:E75A" 0  initline
 \ S" .3.9:E4F.:.5CD:6.8." 1  initline
@@ -373,7 +392,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
   THEN
   DROP wildc ;
 
-: grid-display ( -- )
+: display-grid ( -- )
   grid 16 0 DO                 \ J has the current row#
     16 0 DO                    \ I has the current col#
       DUP @ mask>char
@@ -426,7 +445,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 
         \ S: xcol\yrow\mask\val\check\val
         OR               \ S: xcol\yrow\mask\val\(check|val)
-        -ROT             \ S: xcol\yrow\(check|val)\mask\val
+        -rot             \ S: xcol\yrow\(check|val)\mask\val
         INVERT AND       \ S: xcol\yrow\(check|val)\(mask&~val)
       ELSE
         DROP
@@ -434,7 +453,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
     LOOP
   LOOP
   \ S: xcol\yrow\check\mask
-  NIP -ROT 2DROP FALSE ;
+  NIP -rot 2DROP FALSE ;
 
 \ If 'mask' is zero, it means that all cells in that 4x4
 \ quadrant are resolved (fixed points). Just return a success
@@ -444,7 +463,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
     2DROP FALSE EXIT
   THEN
 
-  -ROT                         \ S: mask\xcol\yrow
+  -rot                         \ S: mask\xcol\yrow
   4 0 DO                       \ J has dy
     4 0 DO                     \ I has dx
       OVER I +                 \ Absolute col#
@@ -501,7 +520,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 
       \ S: mask\val\check\val
       OR                       \ S: mask\val\(check|val)
-      -ROT                     \ S: (check|val)\mask\val
+      -rot                     \ S: (check|val)\mask\val
       INVERT AND
     ELSE
       DROP
@@ -553,7 +572,7 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 
       \ S: mask\val\check\val
       OR                       \ S: mask\val\(check|val)
-      -ROT                     \ S: (check|val)\mask\val
+      -rot                     \ S: (check|val)\mask\val
       INVERT AND
     ELSE
       DROP
@@ -629,26 +648,26 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
   255 0 DO
     DUP @ countbits           \ minp\minp@#bits\curp\curp@#bits
 
-    \ The newly selected minimum cannot ever be 1.
-    DUP 1 > IF
+    \ The newly selected minimum bit count cannot ever be 1.
+    DUP 1 = IF
+      DROP
+    ELSE
       \ minp@#bits can be 1, indicating a resolved spot.
       \ If it is, accept anything but 1 as a new minimum.
       2 PICK 1 = IF           \ minp\minp@#bits\curp\curp@#bits
-        2SWAP 2DROP 2DUP
+        2nip 2DUP
       THEN
 
       \ minp\minp@#bits\curp\curp@#bits
-      DUP 2 = IF               \ 2 as a good enough minimum.
-        2SWAP 2DROP OVER LEAVE \ curp\curp@#bits\curp
+      DUP 2 = IF               \ 2 as a good enough minimum
+        2nip OVER LEAVE \ curp\curp@#bits\curp
       THEN
 
-      DUP 3 PICK < IF          \ minp\minp@#bits\curp\curp@#bits
-        2SWAP 2DROP OVER       \ curp\curp@#bits\curp
+      DUP 3 PICK < IF         \ minp\minp@#bits\curp\curp@#bits
+        2nip OVER              \ curp\curp@#bits\curp
       ELSE
         DROP
       THEN
-    ELSE
-      DROP
     THEN
 
     CELL+                      \ minp\minp@#bits\curp
@@ -674,24 +693,30 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
   \ The list of set bits in TOS indicate the possibilities
   \ for the selected spot. Explore these alternatives.
   16 0 DO
-    DUP I 2^n AND IF
-      OVER TRUE SWAP tstk-push \ Insert transaction boundary
+    DUP I 2^n DUP >R AND IF
+      TRUE 2 PICK tstk-push    \ Insert transaction boundary
 
-      OVER I 2^n SWAP
+      R> 2 PICK
         +ul |visual -ul
         unknowns 1-!           \ Spot provisionally resolved
         !                      \ Un-logged update-spot
 
       infer IF                 \ No inconsistencies detected
-        RECURSE IF             \ Stop on the 1st solution found
-          2DROP UNLOOP TRUE EXIT
+        RECURSE IF             \ Solution found
+          solutions 1+!
+          stopon1st IF
+            2DROP UNLOOP TRUE EXIT
+  \       ELSE
+  \         CR display-grid
+          THEN
         THEN
       THEN
 
       \ Backtrack up to the last transaction boundary.
       BEGIN tstk-pop UNTIL
       nbt 1+!                  \ Increment #backtracks
-
+    ELSE
+      R> DROP
     THEN
   LOOP
 
@@ -700,24 +725,36 @@ CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 
 : main ( -- )
   inits
-  PAGE -cursor
 
-  grid-display
-  infer DROP
+  stopon1st IF
+    PAGE -cursor display-grid
+  THEN
+
+  infer 0= IF
+    +cursor
+    CR ." No solutions"
+    ABORT
+  THEN
 
   \ From here on, everything that could be inferred is in.
   TRUE TO logtrans
-  IFGF utime                   \ Starting timestamp
-  speculate DROP
-  31 15 AT-XY
 
-  IFGF utime 2SWAP DNEGATE D+ DROP 1000 / CR . ." ms elapsed"
+  stopon1st IF
+    IFGF utime                 \ Starting timestamp
+    speculate DROP
+    31 15 AT-XY
 
-  CR ." Maximum recursion level: " reclevmax ?
-  CR ." Problem solved at level: " reclev ?
-  CR ." 'countbits' called " ncb 2@ <# #S #> TYPE ."  times"
-  CR ." Backtracked " nbt ? ." times"
-  +cursor ;
+    IFGF utime 2SWAP DNEGATE D+ DROP CR . ." us elapsed"
+
+    CR ." Maximum recursion level: " reclevmax ?
+    CR ." Problem solved at level: " reclev ?
+    CR ." 'countbits' called " ncb 2@ <# #S #> TYPE ."  times"
+    CR ." Backtracked " nbt ? ." times"
+    +cursor
+  ELSE
+    speculate DROP
+    CR solutions ? ." solution(s) found"
+  THEN ;
 
 main 7 EMIT wasteit
 
