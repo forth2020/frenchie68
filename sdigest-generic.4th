@@ -131,7 +131,10 @@ VARIABLE sha1.state            \ One of the following values
   $10325476 sha1.h3 !
   $C3D2E1F0 sha1.h4 !
   sha1.state-started sha1.state !
-  0 sha1.total-bytecount ! ;
+  0 sha1.total-bytecount !
+
+  \ We do surrender usage of app.msgptr to the SHA1 code.
+  app.msgbuf app.msgptr ! ;
 
 \ -------------------------------------------------------------
 \ Rotate '32bitvalue' to the left 'count' times.
@@ -288,14 +291,17 @@ VARIABLE sha1.state            \ One of the following values
 
 \ -------------------------------------------------------------
 
-: .sha1.digest ( -- )
+: sha1.digest ( -- )
   sha1.initvars
 
   BEGIN
     sha1.refill-encbuf
   WHILE
     sha1.digest-one-block
-  REPEAT
+  REPEAT ;
+
+: .sha1.digest ( -- )
+  sha1.digest
 
   BASE @ >R HEX
   sha1.h0 @ S>D <# # # # # # # # # #>               TYPE
@@ -317,7 +323,6 @@ VARIABLE sha1.state            \ One of the following values
 
 : SDIGEST ( i*x skip-cell-count -- i*x )
   0 app.msglen !               \ expressed in bytes
-  app.msgbuf app.msgptr !
 
   >R                           \ R: skip-cell-count
   DEPTH R@ ?DO
@@ -327,14 +332,12 @@ VARIABLE sha1.state            \ One of the following values
   LOOP
   R> DROP
 
-  \ We do surrender usage of app.msgptr to the SHA1 code.
-  app.msgbuf app.msgptr !
   .sha1.digest ;
 
 \ -------------------------------------------------------------
 \ Tests cases as defined in RFC 3174 (at the end of the C code).
 
-TRUE [IF]
+FALSE [IF]
 
 : target-status ( -- )
   CR ." Target is "
