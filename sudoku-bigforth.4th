@@ -756,7 +756,7 @@ IFZ7 : cell- 1 CELLS - ;
   \ Otherwise, compute grid SHA1 digest, store it to
   \ sol-digest1, compare that to sol0digest and if different:
   \ increment solutions@.
-  \ SHA1 encoding restrictions apply: up to 512 CELLS od data.
+  \ SHA1 encoding restrictions apply: up to 512 CELLS of data.
   solutions @ 1 <>
     ABORT" check-for-new-solution: assertion failure"
 
