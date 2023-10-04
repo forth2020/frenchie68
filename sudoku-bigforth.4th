@@ -452,7 +452,7 @@ IFZ7 : cell- 1 CELLS - ;
     2DROP EXIT
   THEN
 
-  \ This update resolves the spot point to by 'saddr'.
+  \ This update resolves the spot pointed to by 'saddr'.
   OVER countbits 1 = IF unknowns 1-! THEN
 
   logtrans IF                  \ Transaction is logged
