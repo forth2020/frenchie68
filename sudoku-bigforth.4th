@@ -745,7 +745,7 @@ IFZ7 : cell- 1 CELLS - ;
   \ it to sol-digest0 (5 CELLS), increment solutions@ and
   \ return.
   solutions @ 0= IF
-    grid app.msgbuf 256 CELLS MOVE \ Data needs to be copied!
+    grid app.msgbuf 256 CELLS MOVE \ Need to copy data in
     256 CELLS app.msglen !
     sha1.digest
     sol-digest0 ingest-digest
@@ -760,7 +760,7 @@ IFZ7 : cell- 1 CELLS - ;
   solutions @ 1 <>
     ABORT" check-for-new-solution: assertion failure"
 
-  grid app.msgbuf 256 CELLS MOVE \ Data needs to be copied!
+  grid app.msgbuf 256 CELLS MOVE \ Need to copy data in
   256 CELLS app.msglen !
   sha1.digest
   sol-digest1 ingest-digest
