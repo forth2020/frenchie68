@@ -1,3 +1,4 @@
+\ Hexadoku Solver. Z79Forth/A. Francois Laagel.    May 11, 2023
 
 \ The interesting thing about this algorithm is that is does
 \ not work by looking for a solution. It works by systematic
@@ -105,7 +106,7 @@ S" ./sdigest-generic.4th" INCLUDED
 \ Variables and constants.
 
 TRUE  CONSTANT stopon1st       \ User tunable. No vis. if FALSE
-FALSE VALUE logtrans   \ If NZ, log changes to the trans. stack
+FALSE VALUE logtrans    \ If NZ log changes to the trans. stack
 BL CONSTANT wildc
 VARIABLE unknowns
 VARIABLE solutions
@@ -189,7 +190,7 @@ $1000 , $2000 , $4000 , $8000 ,
     LOOP
   THEN
 
-  \ S: val\saddr\char-from-val
+  \ val\saddr\char-from-val
   \ Return immediately if char==wildc and bitcount(saddr@)<>1
   \ This corresponds to a situation where a given cell's mask
   \ changes but the spot remains unresolved.
@@ -197,7 +198,7 @@ $1000 , $2000 , $4000 , $8000 ,
     DROP EXIT
   THEN
 
-  OVER getxy-from-grid-addr    \ S: val\saddr\char-from-val\x\y
+  OVER getxy-from-grid-addr    \ val\saddr\char-from-val\x\y
   SWAP 2* SWAP AT-XY EMIT machdep-wait ;
 
 \ -------------------------------------------------------------
@@ -213,8 +214,8 @@ IFZ7 : cell- 1 CELLS - ;
 
   \ Extract x and y from the 'ptr' pointer.
   DUP >R
-  getxy-from-grid-addr         \ S: begin-flag\x\y
-  SWAP ROT                     \ S: y\x\begin-flag
+  getxy-from-grid-addr         \ R: ptr, S: begin-flag\x\y
+  SWAP ROT                     \ R: ptr, S: y\x\begin-flag
   IF $80 OR THEN
   8 LSHIFT OR
 
@@ -237,11 +238,11 @@ IFZ7 : cell- 1 CELLS - ;
 
   DUP 8 RSHIFT SWAP $FF AND    \ R: bitmsk, S: beg-flg\X\Y
   16* + CELLS grid +           \ R: bitmsk, S: beg-flg\saddr
-  R> SWAP                      \ S: beg-flg\bitmsk\saddr
+  R> SWAP                      \ beg-flg\bitmsk\saddr
 
   \ Check whether we are going from resolved to unresolved.
   \ If so increment 'unknowns' accordingly.
-  DUP @ countbits 1 = IF       \ S: beg-flg\bitmsk\saddr
+  DUP @ countbits 1 = IF       \ beg-flg\bitmsk\saddr
     OVER countbits 1 > IF
       unknowns 1+!
     THEN
@@ -257,17 +258,18 @@ IFZ7 : cell- 1 CELLS - ;
   DUP [CHAR] A [CHAR] F 1+ WITHIN IF [CHAR] 7 - THEN ;
 
 : initline ( srcaddr bytecount linenum -- )
-  16* CELLS grid +             \ S: srcaddr\bytecount\tgtaddr
-  SWAP 0 DO                    \ S: srcaddr\tgtaddr
+  16* CELLS grid +             \ srcaddr\bytecount\tgtaddr
+  SWAP 0 DO                    \ srcaddr\tgtaddr
     OVER I + C@ char>digit DUP 16 < IF
-      2^n                      \ S: srcaddr\tgtaddr\2^<digit>
-      OVER !                   \ S: srcaddr\tgtaddr
-      CELL+                    \ S: srcaddr\tgtaddr-next
+      2^n                      \ srcaddr\tgtaddr\2^<digit>
+      OVER !                   \ srcaddr\tgtaddr
+      CELL+                    \ srcaddr\tgtaddr-next
       unknowns 1-!
     ELSE
       [CHAR] : <> IF CELL+ THEN
     THEN
-  LOOP 2DROP ;
+  LOOP
+  2DROP ;
 
 : inits ( -- )
   0 solutions !
@@ -278,26 +280,47 @@ IFZ7 : cell- 1 CELLS - ;
   LOOP
   DROP
 
-  \ Empty grid (original design).
-  S" 0123:4567:89AB:CDEF" 0  initline
-  S" 45..:C..F:0...:..AB" 1  initline
-  S" 89A.:..23:CD..:.5.7" 2  initline
-  S" C..F:..AB:45..:01.3" 3  initline
+  \ Empty grid.
+\ S" ....:....:....:...." 0  initline
+\ S" ....:....:....:...." 1  initline
+\ S" ....:....:....:...." 2  initline
+\ S" ....:....:....:...." 3  initline
 
-  S" 1.0.:7..4:D...:...6" 4  initline
-  S" E..D:.3.5:1.4.:...9" 5  initline
-  S" 6..8:..1.:.2..:5..4" 6  initline
-  S" 749.:2..C:E..8:..1D" 7  initline
+\ S" ....:....:....:...." 4  initline
+\ S" ....:....:....:...." 5  initline
+\ S" ....:....:....:...." 6  initline
+\ S" ....:....:....:...." 7  initline
 
-  S" 2..1:5..6:A..C:...E" 8  initline
-  S" B..C:..D.:.8..:1..5" 9  initline
-  S" D...:.B.1:5.0.:...A" 10 initline
-  S" 5E..:..F.:.B.D:..0C" 11 initline
+\ S" ....:....:....:...." 8  initline
+\ S" ....:....:....:...." 9  initline
+\ S" ....:....:....:...." 10 initline
+\ S" ....:....:....:...." 11 initline
 
-  S" 3..0:B.4A:.6.1:E..8" 12 initline
-  S" 9.C.:..7.:.0..:.A.1" 13 initline
-  S" A.D.:..3.:.E..:...0" 14 initline
-  S" .8..:E0..:..CA:.4.." 15 initline
+\ S" ....:....:....:...." 12 initline
+\ S" ....:....:....:...." 13 initline
+\ S" ....:....:....:...." 14 initline
+\ S" ....:....:....:...." 15 initline
+ 
+  \ Original design.
+  S" 0...:.5.7:.9.B:.DEF" 0  initline
+  S" 45..:C..F:...2:..AB" 1  initline
+  S" ..A.:..2.:.D..:.5.7" 2  initline
+  S" C..F:8.A.:.5..:01.3" 3  initline
+
+  S" 1.0.:7..4:D...:..C6" 4  initline
+  S" .A..:.3.5:..4.:...9" 5  initline
+  S" 6..8:..1.:72..:5..4" 6  initline
+  S" ..9.:2..C:E3.8:..1." 7  initline
+
+  S" 2..1:5..6:...C:...." 8  initline
+  S" B..C:..D.:.8..:.F.5" 9  initline
+  S" ....:.B.1:..0.:6..A" 10 initline
+  S" 5...:..F.:...D:..0." 11 initline
+
+  S" 3..0:B..A:.6.1:E..8" 12 initline
+  S" 9.C.:..7.:30..:.A.1" 13 initline
+  S" A.D.:..3.:.E..:.6.0" 14 initline
+  S" .8..:E0..:..C.:D4.." 15 initline
 
   \ Elektor data set from the May/June, 2023 issue.
 \ S" E2.A:0..B:.F.C:649." 0  initline
@@ -418,7 +441,7 @@ IFZ7 : cell- 1 CELLS - ;
   #27 EMIT ." [?25h" ;
 
 : mask>char ( mask -- char )
-  DUP countbits                \ S: mask\nbits
+  DUP countbits                \ mask\nbits
   1 = IF
     16 0 DO
       DUP I 2^n = IF
@@ -467,14 +490,14 @@ IFZ7 : cell- 1 CELLS - ;
 : getmask4 ( xcol yrow -- mask\FALSE | TRUE )
   0                            \ Sanity check
   $FFFF                        \ Initial mask
-  \ S: xcol\yrow\check\mask
+  \ xcol\yrow\check\mask
   4 0 DO                       \ J has dy
     4 0 DO                     \ I has dx
       3 PICK I +               \ Absolute col#
       3 PICK J + 16* +
       CELLS grid +
       @ DUP countbits 1 = IF
-        \ S: xcol\yrow\check\mask\val
+        \ xcol\yrow\check\mask\val
         ROT OVER  \ xcol\yrow\mask\val\check\val
         2DUP AND  \ xcol\yrow\mask\val\check\val\(check&val)
 
@@ -482,7 +505,7 @@ IFZ7 : cell- 1 CELLS - ;
           2DROP 2DROP 2DROP UNLOOP UNLOOP TRUE EXIT
         THEN
 
-        \ S: xcol\yrow\mask\val\check\val
+        \ xcol\yrow\mask\val\check\val
         OR                  \ xcol\yrow\mask\val\(check|val)
         -rot                \ xcol\yrow\(check|val)\mask\val
         INVERT AND          \ xcol\yrow\(check|val)\(mask&~val)
@@ -491,7 +514,7 @@ IFZ7 : cell- 1 CELLS - ;
       THEN
     LOOP
   LOOP
-  \ S: xcol\yrow\check\mask
+  \ xcol\yrow\check\mask
   NIP NIP NIP FALSE ;
 
 : setmask4 ( xcol yrow mask -- failure-flag )
@@ -500,15 +523,15 @@ IFZ7 : cell- 1 CELLS - ;
   \ indication, should such a condition occur.
   ?DUP 0= IF 2DROP FALSE EXIT THEN
 
-  -rot                         \ S: mask\xcol\yrow
+  -rot                         \ mask\xcol\yrow
   4 0 DO                       \ J has dy
     4 0 DO                     \ I has dx
       OVER I +                 \ Absolute col#
       OVER J + 16* +
-      CELLS grid +             \ S: mask\xcol\yrow\saddr
+      CELLS grid +             \ mask\xcol\yrow\saddr
       DUP @ DUP countbits 1 <> IF
-        \ S: mask\xcol\yrow\saddr\sval
-        4 PICK AND           \ S: mask\xcol\yrow\saddr\sval-new
+        \ mask\xcol\yrow\saddr\sval
+        4 PICK AND           \ mask\xcol\yrow\saddr\sval-new
         ?DUP IF
           SWAP update-spot
         ELSE \ Mask application would result in zero spot value
@@ -517,9 +540,10 @@ IFZ7 : cell- 1 CELLS - ;
       ELSE
         2DROP
       THEN
-      \ S: mask\xcol\yrow
+      \ mask\xcol\yrow
     LOOP
-  LOOP DROP 2DROP FALSE ;
+  LOOP
+  DROP 2DROP FALSE ;
 
 \ 4x4 block logic: either a spot is known or the list
 \ of alternatives must exclude all known spots values.
@@ -530,11 +554,12 @@ IFZ7 : cell- 1 CELLS - ;
       2DUP getmask4 IF
         2DROP UNLOOP UNLOOP TRUE EXIT
       THEN
-      ( S: xcol#\yrow#\new-possibly-zero-mask ) setmask4 IF
+      ( xcol#\yrow#\new-possibly-zero-mask ) setmask4 IF
         UNLOOP UNLOOP TRUE EXIT
       THEN
     LOOP
-  LOOP FALSE ;
+  LOOP
+  FALSE ;
 
 \ -------------------------------------------------------------
 \ Horizontal exclusion/filtering.
@@ -542,7 +567,7 @@ IFZ7 : cell- 1 CELLS - ;
 \ ANS94 3.2.3.3 Return stack:
 \ A program shall not access from within a do-loop values
 \ placed on the return stack before the loop was entered.
-\ Note: this is enforced in SwiftForth but not in Gforth.
+\ Note: this is enforced in SwiftForth but not in GForth.
 
 \ No side effects.
 : get-horiz-mask ( yrow -- mask\FALSE | TRUE )
@@ -560,7 +585,7 @@ IFZ7 : cell- 1 CELLS - ;
         UNLOOP 2DROP 2DROP DROP TRUE EXIT
       THEN
 
-      \ S: srow-addr\mask\val\check\val
+      \ srow-addr\mask\val\check\val
       OR                       \ srow-addr\mask\val\(check|val)
       -rot                     \ srow-addr\(check|val)\mask\val
       INVERT AND
@@ -579,8 +604,8 @@ IFZ7 : cell- 1 CELLS - ;
   16* CELLS grid +
   16 0 DO                      \ Iterate over columns
     DUP @ DUP countbits 1 <> IF
-      \ S: mask\saddr\sval
-      2 PICK AND               \ S: mask\saddr\sval-new
+      \ mask\saddr\sval
+      2 PICK AND               \ mask\saddr\sval-new
       ?DUP IF
         OVER update-spot
       ELSE \ Mask application would result in zero spot value
@@ -589,9 +614,10 @@ IFZ7 : cell- 1 CELLS - ;
     ELSE
       DROP
     THEN
-    \ S: mask\saddr
+    \ mask\saddr
     CELL+
-  LOOP 2DROP FALSE ; 
+  LOOP
+  2DROP FALSE ; 
 
 \ -------------------------------------------------------------
 \ Vertical exclusion/filtering.
@@ -643,7 +669,8 @@ IFZ7 : cell- 1 CELLS - ;
     THEN
     \ mask\saddr
     16 CELLS +
-  LOOP 2DROP FALSE ;
+  LOOP
+  2DROP FALSE ;
 
 : reduceall ( -- failure-flag )
   reduce4x4 IF                 \ Constraint violated
@@ -721,7 +748,8 @@ IFZ7 : cell- 1 CELLS - ;
     THEN
 
     CELL+                      \ minp\minp@#bits\curp
-  LOOP DROP                    \ minp\minp@#bits
+  LOOP
+  DROP                         \ minp\minp@#bits
 
   \ If the minimum bit count is 1 the problem is solved.
   1 = IF DROP FALSE THEN ;
@@ -740,44 +768,62 @@ IFZ7 : cell- 1 CELLS - ;
   sha1.h3 @ OVER ! CELL+
   sha1.h4 @ SWAP ! ;
 
+: emergency-exit ( ... -- )
+  \ Drain the data stack.
+  BEGIN DEPTH WHILE DROP REPEAT
+  wasteit
+  QUIT ;                       \ Clear the return stack
+
 : check-for-new-solution ( -- )
   \ If solutions@ is zero, compute grid SHA1 digest, store
   \ it to sol-digest0 (5 CELLS), increment solutions@ and
   \ return.
   solutions @ 0= IF
-    grid app.msgbuf 256 CELLS MOVE \ Need to copy data in
+    grid app.msgbuf 256 CELLS MOVE \ Need to copy the data in
     256 CELLS app.msglen !
     sha1.digest
     sol-digest0 ingest-digest
     solutions 1+!
+    stopon1st 0= IF
+      CR display-grid          \ Debug information
+    THEN
     EXIT
   THEN
 
   \ Otherwise, compute grid SHA1 digest, store it to
-  \ sol-digest1, compare that to sol0digest and if different:
+  \ sol-digest1, compare that to sol-digest0 and if different:
   \ increment solutions@.
   \ SHA1 encoding restrictions apply: up to 512 CELLS of data.
-  solutions @ 1 <>
-    ABORT" check-for-new-solution: assertion failure"
-
-  grid app.msgbuf 256 CELLS MOVE \ Need to copy data in
+  grid app.msgbuf 256 CELLS MOVE \ Need to copy the data in
   256 CELLS app.msglen !
   sha1.digest
   sol-digest1 ingest-digest
 
-  sol-digest0 256 CELLS sol-digest0 OVER COMPARE 0= IF
+  sol-digest0 5 CELLS sol-digest1 OVER COMPARE 0= IF
     EXIT                       \ Duplicate detected
   THEN
   
-  solutions 1+! ;
+  solutions 1+!
+  stopon1st 0= IF
+    CR display-grid            \ Debug information
+  THEN
+
+  solutions @ 2 = IF
+    CR ." More than one solution found"
+    emergency-exit
+  THEN ;
 
 : speculate ( -- success-flag )
   rl+                          \ Increment recursion level
 
   get-unresolved               \ Look for an unresolved spot
-  DUP 0= IF INVERT EXIT THEN   \ Problem solved
+  DUP 0= IF                    \ Problem solved
+    check-for-new-solution
+    INVERT
+    EXIT
+  THEN
 
-  DUP @                        \ S: saddr\sval
+  DUP @                        \ saddr\sval
   \ The list of set bits in TOS indicate the possibilities
   \ for the selected spot. Explore these alternatives.
   16 0 DO
@@ -792,16 +838,11 @@ IFZ7 : cell- 1 CELLS - ;
       infer IF                 \ No inconsistencies detected
         RECURSE IF
           stopon1st IF
+            solutions 1+!
             2DROP UNLOOP TRUE EXIT
           ELSE
             \ Possible solution found, make sure it's not a dup
             check-for-new-solution
-            solutions @ 2 = IF
-              CR ." More than one solution"
-              \ Drain the data stack.
-              BEGIN DEPTH WHILE DROP REPEAT
-              QUIT             \ Game over
-            THEN
           THEN
         THEN
       THEN
@@ -826,7 +867,8 @@ IFZ7 : cell- 1 CELLS - ;
 
   infer 0= IF
     +cursor
-    CR ." No solutions" QUIT
+    CR ." No solutions"
+    emergency-exit
   THEN
 
   \ From here on, everything that could be inferred is in.
@@ -858,7 +900,8 @@ IFZ7 : cell- 1 CELLS - ;
   ELSE
     speculate DROP
     CR solutions ? ." solution(s) found"
+    CR ." Backtracked " nbt ? ." times"
   THEN ;
 
-main \ 7 EMIT wasteit
+main 7 EMIT wasteit
 
