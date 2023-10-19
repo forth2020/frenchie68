@@ -1,35 +1,39 @@
-\ SHA-1 sample code for GNU Forth 0.7.3 or SwiftForth 3.7.9
-\ Either a 64 or 32 bit cell size is assumed.
+\ SHA-1 sample code for Z79Forth/A. A 16 bit cell is assumed.
+\ So is a big endian system as well as ANS94 Core
+\ compatibility.
 \
 \ References:
 \ https://www.rfc-editor.org/rfc/rfc3174
 \ https://en.wikipedia.org/wiki/SHA-1
 \
-\ Note: FOB is a TLA for "First Order of Business."
+\ Glossary:
+\ FOB is a TLA for "First Order of Business."
+\ MSC means most significant cell.
+\ LSC means least significant cell.
+\
+\ "Confidence is what you have before you understand the
+\ problem." Woody Allen.
 
 DECIMAL
 
-\ The 64 bit question comes up primarily with respect to
-\ SwiftForth and its upcoming 4.0 flavor (a beta at the time of
-\ this writing). However, there are also 32 bit GForth flavors.
-: IF64 [ 1 CELLS 8 <> ] LITERAL IF POSTPONE \ THEN ; IMMEDIATE
-: IFN64 [ 1 CELLS 8 = ] LITERAL IF POSTPONE \ THEN ; IMMEDIATE
+: find79                       \ -- xt|0; find79 <name>
+  BL WORD
+  DUP C@ 0= IF DROP ." Missing word name" EXIT THEN
+  FIND 0= IF DROP FALSE THEN ;
+
+: z7? [ find79 MCC 1 CELLS 2 = AND ] LITERAL ;
+: IFNZ7 [ z7? 0= ] LITERAL IF ABORT" Not supported!" THEN ;
 
 \ Assert basic assumptions.
-1 CELLS 8 = CONSTANT sha1.is64
-1 CELLS 4 = CONSTANT sha1.is32
+IFNZ7
 
-sha1.is64 sha1.is32 OR 0= [IF]
-  ." Unsupported cell size" ABORT
-[THEN]
+: 2VARIABLE CREATE 2 CELLS ALLOT ;
 
-VARIABLE sha1.is-little-endian  1 sha1.is-little-endian !
-
-VARIABLE sha1.h0   VARIABLE sha1.a
-VARIABLE sha1.h1   VARIABLE sha1.b
-VARIABLE sha1.h2   VARIABLE sha1.c
-VARIABLE sha1.h3   VARIABLE sha1.d
-VARIABLE sha1.h4   VARIABLE sha1.e
+2VARIABLE sha1.h0   2VARIABLE sha1.a
+2VARIABLE sha1.h1   2VARIABLE sha1.b
+2VARIABLE sha1.h2   2VARIABLE sha1.c
+2VARIABLE sha1.h3   2VARIABLE sha1.d
+2VARIABLE sha1.h4   2VARIABLE sha1.e
 
 \ Application supplied data to be digested the SHA-1 way.
 CREATE   app.msgbuf 512 CELLS ALLOT
@@ -52,59 +56,83 @@ VARIABLE sha1.state            \ One of the following values
 2 CONSTANT sha1.state-completed
 
 \ -------------------------------------------------------------
-\ 64 bit code.
+\ Define basic double primitives.
 
-1 CELLS 8 = [IF]
-\ Regular addition modulo 2^32 on a 64 bit platform.
-: sha1.+:32 ( u32a u32b -- u32c ) + $FFFFFFFF AND ;
+: 2xor ( ud1 ud2 -- ud3 )
+  ROT XOR                      \ Handle the MSC
+  -rot XOR SWAP ;              \ and then the LSC
 
-: sha1.><:64 ( u1 -- u2 )
-[ sha1.is-little-endian C@ ] [IF]
-  >R
-  R@                       56 LSHIFT      \ byte 0 to byte 7
-  R@ $FF00             AND 40 LSHIFT OR   \ byte 1 to byte 6
-  R@ $FF0000           AND 24 LSHIFT OR   \ byte 2 to byte 5
-  R@ $FF000000         AND  8 LSHIFT OR   \ byte 3 to byte 4
-  R@ $FF00000000       AND  8 RSHIFT OR   \ byte 4 to byte 3
-  R@ $FF0000000000     AND 24 RSHIFT OR   \ byte 5 to byte 2
-  R@ $FF000000000000   AND 40 RSHIFT OR   \ byte 6 to byte 1
-  R> $FF00000000000000 AND 56 RSHIFT OR ; \ byte 7 to byte 0
-[ELSE]
-  ;
-[THEN]
+: 2and ( ud1 ud2 -- ud3 )
+  ROT AND                      \ Handle the MSC
+  -rot AND SWAP ;              \ and then the LSC
 
-: sha1.store.bitcount ( msg.bytecount 8 -- )
-  * 
-    sha1.><:64                 \ Message bitcount to big endian
-    56 sha1.encbuf + ! ;
+: 2or ( ud1 ud2 -- ud3 )
+  ROT OR                       \ Handle the MSC
+  -rot OR SWAP ;               \ and then the LSC
 
-[THEN]                         \ 64 bit code
+: 2invert ( ud1 -- ud2 )
+  SWAP INVERT                  \ Handle the LSC
+  SWAP INVERT ;                \ and then the MSC
+
+: .double ( ud1 -- ud1 )
+  2DUP
+  BASE @ >R
+  2 BASE !
+  <# # # # # # # # # # # # # # # # #
+     # # # # # # # # # # # # # # # # #> TYPE
+  R> BASE ! ;
+
+: 2lshift ( ud1.l ud1.m ucount -- ud2.l ud2.m )
+  \ 'ucount' must be in [0..31]
+  DUP 0 32 WITHIN 0= ABORT" 2lshift: assertion failure"
+
+  ?DUP 0= IF EXIT THEN         \ No change if ucount is 0
+  >R                           \ ud1.l\ud1.m, R: ucount
+
+  R@ 17 < IF
+    \ Compute overflow bits from ud1.l
+    OVER 16 R@ - RSHIFT        \ ud1.l\ud1.m\ud1.l>>(16-ucount)
+
+    SWAP R@ LSHIFT OR
+    SWAP R> LSHIFT
+  ELSE
+    R> 16 - RECURSE
+    \ Simplified 16 2lshift: ( MSC <= LSC, LSC <= 0 )
+    DROP 0
+  THEN
+  SWAP ;
+
+: 2rshift ( ud1.l ud1.m ucount -- ud2.l ud2.m )
+  \ 'ucount' must be in [0..31]
+  DUP 0 32 WITHIN 0= ABORT" 2rshift: assertion failure"
+
+  ?DUP 0= IF EXIT THEN         \ No change if ucount is 0
+  >R                           \ ud1.l\ud1.m, R: ucount
+
+  R@ 17 < IF
+    \ Compute overflow bits from ud1.m
+    DUP 16 R@ - LSHIFT         \ ud1.l\ud1.m\ud1.m<<(16-ucount)
+    
+    ROT R@ RSHIFT OR \ ud1.m\(ud1.m<<(16-ucount))|ud1.l>>ucount
+    SWAP R> RSHIFT
+  ELSE
+    R> 16 - RECURSE
+    \ Simplified 16 2rshift: ( MSC <= 0, LSC <= MSC )
+    NIP 0
+  THEN ;
 
 \ -------------------------------------------------------------
-\ 32 bit code.
+\ 16 bit BE code for SHA1 message digests.
 
-1 CELLS 4 = [IF]
-\ Regular addition modulo 2^32 on a 32 bit platform.
-: sha1.+:32 + ;
+: sha1.+:32 D+ ;
 
-: sha1.><:32 ( u1 -- u2 )
-[ sha1.is-little-endian C@ ] [IF]
-  >R                           \ S: R: u1
-  R@             $18 RSHIFT    \ u1:byte3 to u2:byte0
-  R@ $FF0000 AND   8 RSHIFT OR \ u1:byte2 to u2:byte1
-  R@ $FF00   AND   8 LSHIFT OR \ u1:byte1 to u2:byte2
-  R> $FF     AND $18 LSHIFT OR \ u1:byte0 to u2:byte3
-  ( S: u2 R : ) ;
-[ELSE]
-  ;
-[THEN]
-
+\ Note: the message length is truncated to 2^32-1.
+\ Not a problem since we do not claim to be able to produce
+\ valid result beyond 512 CELLS anyway.
 : sha1.store.bitcount ( msg.bytecount 8 -- )
   UM*
-    sha1.><:32 56 sha1.encbuf + !   \ Most significant cell
-    sha1.><:32 60 sha1.encbuf + ! ; \ Least significant cell
-
-[THEN]                         \ 32 bit code
+    0. 56 sha1.encbuf + 2!     \ 0. to the MSC
+    60 sha1.encbuf + 2! ;      \ Store the LSC
 
 \ -------------------------------------------------------------
 \ Acquire a 32 bit value stored in big endian byte order.
@@ -112,30 +140,23 @@ VARIABLE sha1.state            \ One of the following values
 \ the base fixed size buffer 'sha1.w'.
 : sha1.getword:32 ( index -- 32bitvalue )
   4 * sha1.w +                 \ Pointing to byte 3
-  DUP C@ $18 LSHIFT        SWAP 1+ \ Pointing to byte 2
-  DUP C@ $10 LSHIFT ROT OR SWAP 1+ \ Pointing to byte 1
-  DUP C@ 8   LSHIFT ROT OR SWAP 1+ \ Pointing to byte 0
-  C@ OR ;
+  2@ ;
 
 \ Store '32bitvalue' in big endian byte order to the 'sha1.w'
 \ array. The first byte affected resides at byte offset 'index'
 \ times 4 from the base fixed size buffer 'sha1.w'.
 : sha1.putword:32 ( 32bitvalue index -- )
   4 * sha1.w +                 \ Pointing to byte 3
-  OVER             $18 RSHIFT OVER C! 1+
-  OVER $FF0000 AND $10 RSHIFT OVER C! 1+
-  OVER $FF00   AND 8   RSHIFT OVER C! 1+
-  SWAP $FF     AND
-  SWAP C! ;
+  2! ;
 
 \ -------------------------------------------------------------
 
 : sha1.initvars ( -- )
-  $67452301 sha1.h0 !
-  $EFCDAB89 sha1.h1 !
-  $98BADCFE sha1.h2 !
-  $10325476 sha1.h3 !
-  $C3D2E1F0 sha1.h4 !
+  $67452301. sha1.h0 2!
+  $EFCDAB89. sha1.h1 2!
+  $98BADCFE. sha1.h2 2!
+  $10325476. sha1.h3 2!
+  $C3D2E1F0. sha1.h4 2!
   sha1.state-started sha1.state !
   0 sha1.total-bytecount !
 
@@ -143,21 +164,18 @@ VARIABLE sha1.state            \ One of the following values
   app.msgbuf app.msgptr ! ;
 
 \ -------------------------------------------------------------
-\ Rotate '32bitvalue' to the left 'count' times.
 
-: sha1.leftrotate:32 ( 32bitvalue count )
-  DUP $1F > IF                 \ Deal with ambiguous condition
-    2DROP 0 EXIT
-  THEN
+\ Rotate 'ud1' (32bitvalue) to the left 'ucount' times.
+: sha1.leftrotate:32 ( ud1 ucount -- ud2 )
+  $1F AND >R                   \ ud1.l\ud1.m, R: ucount
 
-  2DUP                      \ 32bitvalue\count\32bitvalue\count
-  LSHIFT
-  IF64 $FFFFFFFF AND       \ 32bitvalue\count\32bitvalue<<count
-  -rot                     \ 32bitvalue<<count\32bitvalue\count
-  32 SWAP -
-  RSHIFT             \ 32bitvalue<<count\32bitvalue<<(32-count)
-  IF64 $FFFFFFFF AND
-  OR ;
+  2DUP                     \ ud1.l\ud1.m\ud1.l\ud1.m, R: ucount
+  R@ 2lshift
+  \ ud1.l\ud1.m\(ud1<<ucount).l\(ud1<<ucount).m, R: ucount
+  3 ROLL 3 ROLL
+  \ (ud1<<ucount).l\(ud1<<ucount).m\ud1.l\ud1.m, R: ucount
+  32 R> - 2rshift
+  2or ;
 
 \ -------------------------------------------------------------
 
@@ -167,9 +185,9 @@ VARIABLE sha1.state            \ One of the following values
   \ Extend the sixteen 32-bit words into eighty 32-bit words
   80 16 DO
     i 3  - sha1.getword:32
-    i 8  - sha1.getword:32 XOR
-    i 14 - sha1.getword:32 XOR
-    i 16 - sha1.getword:32 XOR
+    i 8  - sha1.getword:32 2xor
+    i 14 - sha1.getword:32 2xor
+    i 16 - sha1.getword:32 2xor
     1 sha1.leftrotate:32
     i sha1.putword:32
   LOOP ;
@@ -180,54 +198,55 @@ VARIABLE sha1.state            \ One of the following values
   sha1.expand-block
 
   \ Per block hash value initialization.
-  sha1.h0 @ sha1.a !
-  sha1.h1 @ sha1.b !
-  sha1.h2 @ sha1.c !
-  sha1.h3 @ sha1.d !
-  sha1.h4 @ sha1.e !
+  sha1.h0 2@ sha1.a 2!
+  sha1.h1 2@ sha1.b 2!
+  sha1.h2 2@ sha1.c 2!
+  sha1.h3 2@ sha1.d 2!
+  sha1.h4 2@ sha1.e 2!
 
   \ Main loop
   80 0 DO
     I 0 20 WITHIN IF
-      $5A827999
-      sha1.b @ sha1.c @ AND sha1.b @ INVERT sha1.d @ AND OR
+      $5A827999.
+      sha1.b 2@ sha1.c 2@ 2and sha1.b 2@ 2invert
+        sha1.d 2@ 2and 2or
     THEN
 
     I 20 40 WITHIN IF
-      $6ED9EBA1
-      sha1.b @ sha1.c @ XOR sha1.d @ XOR
+      $6ED9EBA1.
+      sha1.b 2@ sha1.c 2@ 2xor sha1.d 2@ 2xor
     THEN
 
     I 40 60 WITHIN IF
-      $8F1BBCDC
-      sha1.b @ sha1.c @ AND
-        sha1.b @ sha1.d @ AND OR
-        sha1.c @ sha1.d @ AND OR
+      $8F1BBCDC.
+      sha1.b 2@ sha1.c 2@ 2and
+        sha1.b 2@ sha1.d 2@ 2and 2or
+        sha1.c 2@ sha1.d 2@ 2and 2or
     THEN
 
     I 60 80 WITHIN IF
-      $CA62C1D6
-      sha1.b @ sha1.c @ XOR sha1.d @ XOR
+      $CA62C1D6.
+      sha1.b 2@ sha1.c 2@ 2xor sha1.d 2@ 2xor
     THEN
 
-    \ S: sha1-k\sha1-f
+    \ ud-sha1-k\ud-sha1-f
 
     sha1.+:32
-      sha1.a @ 5 sha1.leftrotate:32 sha1.+:32
-      sha1.e @ sha1.+:32
+      sha1.a 2@ 5 sha1.leftrotate:32 sha1.+:32
+      sha1.e 2@ sha1.+:32
       i sha1.getword:32 sha1.+:32 \ aka sha1-temp
-    sha1.d @ sha1.e !
-    sha1.c @ sha1.d !
-    sha1.b @ 30 sha1.leftrotate:32 sha1.c !
-    sha1.a @ sha1.b !
-    sha1.a !                   \ sha1-a = sha1-temp
+    sha1.d 2@ sha1.e 2!
+    sha1.c 2@ sha1.d 2!
+    sha1.b 2@ 30 sha1.leftrotate:32 sha1.c 2!
+    sha1.a 2@ sha1.b 2!
+    sha1.a 2!                  \ sha1-a = sha1-temp
   LOOP
 
-  sha1.a @ sha1.h0 @ sha1.+:32 sha1.h0 !
-  sha1.b @ sha1.h1 @ sha1.+:32 sha1.h1 !
-  sha1.c @ sha1.h2 @ sha1.+:32 sha1.h2 !
-  sha1.d @ sha1.h3 @ sha1.+:32 sha1.h3 !
-  sha1.e @ sha1.h4 @ sha1.+:32 sha1.h4 ! ;
+  sha1.a 2@ sha1.h0 2@ sha1.+:32 sha1.h0 2!
+  sha1.b 2@ sha1.h1 2@ sha1.+:32 sha1.h1 2!
+  sha1.c 2@ sha1.h2 2@ sha1.+:32 sha1.h2 2!
+  sha1.d 2@ sha1.h3 2@ sha1.+:32 sha1.h3 2!
+  sha1.e 2@ sha1.h4 2@ sha1.+:32 sha1.h4 2! ;
 
 \ -------------------------------------------------------------
 \ This is the tricky part of the encoding algorithm. It handles
@@ -318,11 +337,11 @@ VARIABLE sha1.state            \ One of the following values
   sha1.digest
 
   BASE @ >R HEX
-  sha1.h0 @ S>D <# # # # # # # # # #>               TYPE
-  sha1.h1 @ S>D <# # # # # # # # # [CHAR] : HOLD #> TYPE
-  sha1.h2 @ S>D <# # # # # # # # # [CHAR] : HOLD #> TYPE
-  sha1.h3 @ S>D <# # # # # # # # # [CHAR] : HOLD #> TYPE
-  sha1.h4 @ S>D <# # # # # # # # # [CHAR] : HOLD #> TYPE
+  sha1.h0 2@ <# # # # # # # # # #>               TYPE
+  sha1.h1 2@ <# # # # # # # # # [CHAR] : HOLD #> TYPE
+  sha1.h2 2@ <# # # # # # # # # [CHAR] : HOLD #> TYPE
+  sha1.h3 2@ <# # # # # # # # # [CHAR] : HOLD #> TYPE
+  sha1.h4 2@ <# # # # # # # # # [CHAR] : HOLD #> TYPE
   R> BASE ! ;
 
 \ -------------------------------------------------------------
@@ -335,24 +354,11 @@ VARIABLE sha1.state            \ One of the following values
 \ - the current 512 bit block being operated on by
 \   sha1.digest-one-block.
 
-\ > : sdigest ( i*x skip-cell-count -- i*x )
-\ 325a336
-\ >   app.msgbuf app.msgptr !
-\ 327,328c338
-\ <   >R                           \ R: skip-cell-count
-\ <   DEPTH R@ ?DO
-\ ---
-\ >   DEPTH 1- OVER ?DO
-\ 333c343
-\ <   R> DROP
-\ ---
-\ >   DROP
-
 : sdigest ( i*x skip-cell-count -- i*x )
   0 app.msglen !               \ expressed in bytes
   app.msgbuf app.msgptr !
 
-  >R
+  >R                           \ R: skip-cell-count
   DEPTH R@ ?DO
     I PICK  app.msgptr @ !
     1 CELLS app.msgptr +!
@@ -363,55 +369,42 @@ VARIABLE sha1.state            \ One of the following values
   .sha1.digest ;
 
 \ -------------------------------------------------------------
-\ Tests cases as defined in RFC 3174 (at the end of the C code).
+\ Tests cases as defined in RFC 3174, at the end of the C code.
 
-FALSE [IF]
+\ : target-status ( -- )
+\   CR ." Target is 16 bit big endian" ;
 
-: target-status ( -- )
-  CR ." Target is "
-  sha1.is64 IF S" 64" ELSE S" 32" THEN
-  TYPE ."  bit "
-  sha1.is-little-endian C@ IF S" little" ELSE S" big" THEN
-  TYPE ."  endian." ;
+\ : digest-sliteral ( addr bytecount -- )
+\   DUP app.msglen ! app.msgbuf SWAP CMOVE
+\   app.msgbuf app.msgptr !
+\   .sha1.digest ;
 
-: digest-sliteral ( addr bytecount -- )
-  DUP app.msglen ! app.msgbuf SWAP CMOVE
-  app.msgbuf app.msgptr !
-  .sha1.digest ;
+\ target-status
 
-target-status
-
-S" abc" CR digest-sliteral
+\ S" abc" CR digest-sliteral
 \ Expected output is:
 \ A9993E36:4706816A:BA3E2571:7850C26C:9CD0D89D
 
-S" abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
-  CR digest-sliteral
+\ S" abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+\   CR digest-sliteral
 \ Expected output is:
 \ 84983E44:1C3BD26E:BAAE4AA1:F95129E5:E54670F1
 
-\ RFC 3174 tests that have a repeat count > 1 are not supported.
+\ RFC 3174 tests that have a repeat count>1 are not supported.
 
 \ Tests from the SHA-1 wikipedia page.
-S" The quick brown fox jumps over the lazy dog"
-  CR digest-sliteral
+\ S" The quick brown fox jumps over the lazy dog"
+\   CR digest-sliteral
 \ Expected output is:
 \ 2FD4E1C6:7A2D28FC:ED849EE1:BB76E739:1B93EB12
 
-S" The quick brown fox jumps over the lazy cog"
-  CR digest-sliteral
+\ S" The quick brown fox jumps over the lazy cog"
+\   CR digest-sliteral
 \ Expected output is:
 \ DE9F2C7F:D25E1B3A:FAD3E85A:0BD17D9B:100DB4B3
 
-\ More tests from https://www.di-mgt.com.au/sha_testvectors.html
-S" " CR digest-sliteral
+\ Test from https://www.di-mgt.com.au/sha_testvectors.html
+\ S" " CR digest-sliteral
 \ Expected output is:
 \ DA39A3EE:5E6B4B0D:3255BFEF:95601890:AFD80709
-
-S" abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"
-  CR digest-sliteral
-\ Expected output is:
-\ A49B2446:A02C645B:F419F995:B6709125:3A04A259
-
-[THEN]
 
