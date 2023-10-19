@@ -282,91 +282,26 @@ $1000 , $2000 , $4000 , $8000 ,
 \ S" ....:....:....:...." 14 initline
 \ S" ....:....:....:...." 15 initline
 
-  \ Elektor data set from the May/June, 2023 issue.
-\ S" E2.A:0..B:.F.C:649." 0  initline
-\ S" .C.F:158.:...0:.BA7" 1  initline
-\ S" ..1.:..4.:....:.8.2" 2  initline
-\ S" 834.:..CD:.7BE:.01." 3  initline
+  \ Original design.
+  S" 0...:.5.7:.9.B:.DEF" 0  initline
+  S" 45..:C..F:...2:..AB" 1  initline
+  S" ..A.:..2.:.D..:.5.7" 2  initline
+  S" C..F:8.A.:.5..:01.3" 3  initline
 
-\ S" ..F8:....:...3:..29" 4  initline
-\ S" 7.23:..1.:..9B:D..A" 5  initline
-\ S" .6..:.D.8:.AE.:5..." 6  initline
-\ S" .1..:5..6:.8.D:...." 7  initline
+  S" 1.0.:7..4:D...:..C6" 4  initline
+  S" .A..:.3.5:..4.:...9" 5  initline
+  S" 6..8:..1.:72..:5..4" 6  initline
+  S" ..9.:2..C:E3.8:..1." 7  initline
 
-\ S" .7..:A..3:.E.6:...." 8  initline
-\ S" .D..:.6.2:.B3.:8..." 9  initline
-\ S" 3.96:..5.:..7F:1..0" 10 initline
-\ S" ..05:....:...9:..76" 11 initline
+  S" 2..1:5..6:...C:...." 8  initline
+  S" B..C:..D.:.8..:.F.5" 9  initline
+  S" ....:.B.1:..0.:6..A" 10 initline
+  S" 5...:..F.:...D:..0." 11 initline
 
-\ S" 09E.:..2A:.3F5:.C6." 12 initline
-\ S" ..7.:..6.:....:.5.3" 13 initline
-\ S" .8.C:F73.:...1:.D0B" 14 initline
-\ S" 5F.4:8..0:.6.2:A7E." 15 initline
-
-  \ Elektor data set from the July/August, 2023 issue.
-  S" D.16:0.27:.A..:...B" 0  initline
-  S" .3..:....:0182:7..." 1  initline
-  S" 5.F.:...4:3B.D:..0A" 2  initline
-  S" A...:.35.:...F:..4." 3  initline
-
-  S" 3...:4..1:9C..:E..." 4  initline
-  S" ...1:.B..:6...:.C8." 5  initline
-  S" 6..5:..90:A8..:.DF." 6  initline
-  S" 0.A.:C.D.:..1.:4567" 7  initline
-
-  S" .D6.:84F.:.E..:2..." 8  initline
-  S" 2E8.:5.0.:74..:61.." 9  initline
-  S" .F..:...6:..2B:..5." 10 initline
-  S" .504:....:..9.:C.E8" 11 initline
-
-  S" .6..:9..3:C7.0:...." 12 initline
-  S" ....:.542:.9..:...." 13 initline
-  S" ..52:.0EA:..D8:..B." 14 initline
-  S" 8.9.:...F:...4:...6" 15 initline
-
-  \ Elektor data set from the Holiday Circuits #4, 2023 issue.
-  \ Solved by inference only. No speculation required!!!
-\ S" F02C:D1..:..48:E75A" 0  initline
-\ S" .3.9:E4F.:.5CD:6.8." 1  initline
-\ S" 4A6.:....:....:.31D" 2  initline
-\ S" 8...:9..A:6..1:...F" 3  initline
-
-\ S" ..AE:..0F:B9..:CD.." 4  initline
-\ S" 063.:1.47:DF.E:.5B9" 5  initline
-\ S" .B.F:.D.5:C.2.:3.7." 6  initline
-\ S" ..C.:.3..:..8.:.F.." 7  initline
-
-\ S" ..D.:.A..:..6.:.0.." 8  initline
-\ S" .C.2:.8.E:0.B.:1.A." 9  initline
-\ S" 79B.:4.63:81.2:.CE5" 10 initline
-\ S" ..01:..9D:47..:8B.." 11 initline
-
-\ S" A...:3..2:F..B:...7" 12 initline
-\ S" B14.:....:....:.89C" 13 initline
-\ S" .E.7:6BD.:.A90:4.2." 14 initline
-\ S" D290:7F..:..EC:5A6B" 15 initline
-
-  \ Elektor data set from the September/October, 2023 issue.
-  \ Solved by inference only. No speculation required!!!
-\ S" ..E3:FB.5:8.26:40.." 0  initline
-\ S" B...:.EA.:.59.:...3" 1  initline
-\ S" 4...:.209:E7B.:...D" 2  initline
-\ S" .7..:....:....:..5." 3  initline
-
-\ S" 9.BE:74..:..81:32.C" 4  initline
-\ S" ..46:9.CA:0B.7:DF.." 5  initline
-\ S" 7.AD:8.B.:.4.2:56.1" 6  initline
-\ S" 58..:D02.:.36A:..B4" 7  initline
-
-\ S" 63..:B57.:.EAC:..80" 8  initline
-\ S" 8.01:E.3.:.6.5:9B.A" 9  initline
-\ S" ..DB:4.62:3F.9:C7.." 10 initline
-\ S" C.27:0A..:..4D:F3.5" 11 initline
-
-\ S" .9..:....:....:..7." 12 initline
-\ S" E...:.943:52C.:...6" 13 initline
-\ S" 0...:.7F.:.AD.:...9" 14 initline
-\ S" ..84:5C.B:7.F0:AD.." 15 initline
+  S" 3..0:B..A:.6.1:E..8" 12 initline
+  S" 9.C.:..7.:30..:.A.1" 13 initline
+  S" A.D.:..3.:.E..:.6.0" 14 initline
+  S" .8..:E0..:..C.:D4.." 15 initline
 
   \ Transaction stack initialization.
   tstk-bottom tstkp !
