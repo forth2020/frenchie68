@@ -578,14 +578,6 @@ $1000 , $2000 , $4000 , $8000 ,
 \ -------------------------------------------------------------
 \ Speculation.
 
-\ TODO: Better locality management.
-\ On input, 'saddr' points to a cell which value has just been
-\ changed from unresolved to resolved status. Indirectly and
-\ recursively explore the consequences of this fact. Return
-\ FALSE as soon as a constraint violation is detected. Return
-\ TRUE as long as we can observe 'unknowns' decreasing or we no
-\ longer can infer anything.
-\ : infer ( saddr -- success-flag )
 : infer ( -- success-flag )
   256                          \ 'unknowns' worst case scenario
   BEGIN
@@ -696,9 +688,7 @@ $1000 , $2000 , $4000 , $8000 ,
   TRUE TO logtrans
 
   stopon1st IF
-    IFGF utime                 \ Starting timestamp
     speculate DROP
-    IFGF utime
 
     PAGE display-grid
     31 15 AT-XY
