@@ -335,19 +335,6 @@ VARIABLE sha1.state            \ One of the following values
 \ - the current 512 bit block being operated on by
 \   sha1.digest-one-block.
 
-\ > : sdigest ( i*x skip-cell-count -- i*x )
-\ 325a336
-\ >   app.msgbuf app.msgptr !
-\ 327,328c338
-\ <   >R                           \ R: skip-cell-count
-\ <   DEPTH R@ ?DO
-\ ---
-\ >   DEPTH 1- OVER ?DO
-\ 333c343
-\ <   R> DROP
-\ ---
-\ >   DROP
-
 : sdigest ( i*x skip-cell-count -- i*x )
   0 app.msglen !               \ expressed in bytes
   app.msgbuf app.msgptr !
