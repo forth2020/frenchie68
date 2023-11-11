@@ -146,7 +146,6 @@ $1000 , $2000 , $4000 , $8000 ,
   grid - cell/ 16/mod ;
 
 : |visual ( val saddr -- val saddr )
-  EXIT                         \ XXX This is temporary
   \ No visualization if looking for for multiple solutions.
   stopon1st 0= IF EXIT THEN
 
@@ -447,7 +446,7 @@ $1000 , $2000 , $4000 , $8000 ,
 \ Horizontal exclusion/filtering.
 
 \ ANS94 3.2.3.3 Return stack:
-\ A program shall not access from within a do-loop values
+\ A program shall not access from within a DO-LOOP values
 \ placed on the return stack before the loop was entered.
 \ Note: this is enforced in SwiftForth but not in Gforth.
 
@@ -458,7 +457,7 @@ $1000 , $2000 , $4000 , $8000 ,
   $FFFF                        \ Initial mask
   16 0 DO                      \ Iterate over columns
     \ srow-addr\check\mask
-    2 PICK  I CELLS + @ DUP countbits 1 = IF
+    2 PICK I CELLS + @ DUP countbits 1 = IF
       \ srow-addr\check\mask\val
       ROT OVER \ srow-addr\mask\val\check\val
       2DUP AND \ srow-addr\mask\val\check\val\(check&val)
@@ -655,8 +654,8 @@ $1000 , $2000 , $4000 , $8000 ,
           solutions 1+!
           stopon1st IF
             2DROP UNLOOP TRUE EXIT
-\         ELSE
-\           CR display-grid
+          ELSE
+            CR display-grid
           THEN
         THEN
       THEN
@@ -688,12 +687,14 @@ $1000 , $2000 , $4000 , $8000 ,
   TRUE TO logtrans
 
   stopon1st IF
+    IFGF utime
     speculate DROP
+    IFGF utime 2SWAP DNEGATE D+ DROP
 
     PAGE display-grid
     31 15 AT-XY
 
-    IFGF 2SWAP DNEGATE D+ DROP CR . ." us elapsed"
+    IFGF CR . ." us elapsed"
 
     CR ." Maximum recursion level: " reclevmax ?
     CR ." Problem solved at level: " reclev ?
