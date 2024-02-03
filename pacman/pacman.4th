@@ -1,1 +1,0 @@
-/home/mit/src/pacman/pacman.4th
