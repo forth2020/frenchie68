@@ -66,7 +66,9 @@ IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
 2VARIABLE bonus   \ Semantics need clarification
 2VARIABLE suptim  \ Semantics need clarification
 VARIABLE y0       \ Used by 'display-line' for inits purposes
-600 VALUE clkperiod \ Expressed in milliseconds
+200 VALUE clkperiod \ Expressed in milliseconds
+
+DEFER entity.display
 
 \ -------------------------------------------------------------
 \ Grid specification.
@@ -128,7 +130,7 @@ nsixels pcmw *
 \ effect will be lost...
 
 CREATE softfont
-\ Character "ghost", left half at $21 (!)
+\ Character "blinky", left half at $21 (!)
 \ Left: colunm #0 and #1 unused.
 \ Group A  Group B    Group C (top to bottom)
 %000000 C, %000000 C, %0000 C, \ Column #0 unused
@@ -142,7 +144,7 @@ CREATE softfont
 %111111 C, %111111 C, %0011 C, \ Column #8
 %111111 C, %111111 C, %0011 C, \ Column #9
 
-\ Character "ghost", right half at $22 (").
+\ Character "blinky", right half at $22 (").
 \ Right: columns #8 and #9 unused.
 \ Group A  Group B    Group C (top to bottom)
 %111111 C, %111111 C, %0011 C, \ Column #0
@@ -743,6 +745,90 @@ CREATE softfont
 %110000 C, %111111 C, %0000 C, \ Column #8
 %110000 C, %111111 C, %0000 C, \ Column #9
 
+\ Character "Inky", left half at $4F (O)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %000000 C, %0000 C, \ Column #0 unused
+%000000 C, %000000 C, %0000 C, \ Column #1 unused
+%110000 C, %111111 C, %1111 C, \ Column #2
+%110000 C, %111111 C, %1111 C, \ Column #3
+%111100 C, %111111 C, %0011 C, \ Column #4
+%111100 C, %111111 C, %0011 C, \ Column #5
+%111100 C, %111100 C, %1111 C, \ Column #6
+%111100 C, %111100 C, %1111 C, \ Column #7
+%111111 C, %111111 C, %0011 C, \ Column #8
+%111111 C, %001111 C, %0011 C, \ Column #9
+
+\ Character "Inky", right half at $50 (P).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %001111 C, %0011 C, \ Column #0
+%111111 C, %111111 C, %0011 C, \ Column #1
+%111100 C, %111100 C, %1111 C, \ Column #2
+%111100 C, %111100 C, %1111 C, \ Column #3
+%111100 C, %111111 C, %0011 C, \ Column #4
+%111100 C, %111111 C, %0011 C, \ Column #5
+%110000 C, %111111 C, %1111 C, \ Column #6
+%110000 C, %111111 C, %1111 C, \ Column #7
+%000000 C, %000000 C, %0000 C, \ Column #8 unused
+%000000 C, %000000 C, %0000 C, \ Column #9 unused
+
+\ Character "Pinky", left half at $51 (O)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %000000 C, %0000 C, \ Column #0 unused
+%000000 C, %000000 C, %0000 C, \ Column #1 unused
+%110000 C, %111111 C, %1111 C, \ Column #2
+%110000 C, %111111 C, %1110 C, \ Column #3
+%111100 C, %011111 C, %0011 C, \ Column #4
+%111100 C, %101111 C, %0011 C, \ Column #5
+%111100 C, %110100 C, %1111 C, \ Column #6
+%111100 C, %111100 C, %1111 C, \ Column #7
+%111111 C, %111111 C, %0011 C, \ Column #8
+%111111 C, %111111 C, %0011 C, \ Column #9
+
+\ Character "Pinky", right half at $52 (P).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %111111 C, %0011 C, \ Column #0
+%111111 C, %111111 C, %0011 C, \ Column #1
+%111100 C, %111100 C, %1111 C, \ Column #2
+%111100 C, %110100 C, %1111 C, \ Column #3
+%111100 C, %101111 C, %0011 C, \ Column #4
+%111100 C, %011111 C, %0011 C, \ Column #5
+%110000 C, %111111 C, %1110 C, \ Column #6
+%110000 C, %111111 C, %1111 C, \ Column #7
+%000000 C, %000000 C, %0000 C, \ Column #8 unused
+%000000 C, %000000 C, %0000 C, \ Column #9 unused
+
+\ Character "Clyde", left half at $53 (Q)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %000000 C, %0000 C, \ Column #0 unused
+%000000 C, %000000 C, %0000 C, \ Column #1 unused
+%110000 C, %111111 C, %1111 C, \ Column #2
+%110000 C, %110111 C, %1111 C, \ Column #3
+%111100 C, %101111 C, %0011 C, \ Column #4
+%111100 C, %011111 C, %0011 C, \ Column #5
+%111100 C, %110100 C, %1110 C, \ Column #6
+%111100 C, %111100 C, %1111 C, \ Column #7
+%111111 C, %111111 C, %0011 C, \ Column #8
+%111111 C, %111111 C, %0011 C, \ Column #9
+   
+\ Character "Clyde", right half at $54 (R).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %111111 C, %0011 C, \ Column #0
+%111111 C, %111111 C, %0011 C, \ Column #1
+%111100 C, %111100 C, %1111 C, \ Column #2
+%111100 C, %110100 C, %1110 C, \ Column #3
+%111100 C, %011111 C, %0011 C, \ Column #4
+%111100 C, %101111 C, %0011 C, \ Column #5
+%110000 C, %110111 C, %1111 C, \ Column #6
+%110000 C, %111111 C, %1111 C, \ Column #7
+%000000 C, %000000 C, %0000 C, \ Column #8 unused
+%000000 C, %000000 C, %0000 C, \ Column #9 unused
+
 \ The following is twice the number of sprites (dw characters).
 HERE softfont - chrdefbcnt / CONSTANT nchars
 
@@ -779,29 +865,32 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ $21 is the first user defined character in the software font.
 : .dwchar ( offs -- ) $21 + DUP EMIT 1+ EMIT ;
 
-: .ghost ( -- ) 0  .dwchar ;
-: .cross ( -- ) 2  .dwchar ;  \ Erasable (by pacman)
-: .pmrgt ( -- ) 4  .dwchar ;
-: .pmgo  ( -- ) 6  .dwchar ;
-: .llc   ( -- ) 8  .dwchar ;
-: .lrc   ( -- ) 10 .dwchar ;
-: .hbar  ( -- ) 12 .dwchar ;
-: .vbar  ( -- ) 14 .dwchar ;
-: .ulc   ( -- ) 16 .dwchar ;
-: .urc   ( -- ) 18 .dwchar ;
-: .ppl   ( -- ) 20 .dwchar ;  \ Erasable (by pacman)
-: .tdn   ( -- ) 22 .dwchar ;
-: .tup   ( -- ) 24 .dwchar ;
-: .trg   ( -- ) 26 .dwchar ;
-: .tlf   ( -- ) 28 .dwchar ;
-: .west  ( -- ) 30 .dwchar ;
-: .east  ( -- ) 32 .dwchar ;
-: .south ( -- ) 34 .dwchar ;
-: .north ( -- ) 36 .dwchar ;
-: .door  ( -- ) 38 .dwchar ;
-: .pmlft ( -- ) 40 .dwchar ;
-: .pmupw ( -- ) 42 .dwchar ;
-: .pmdnw ( -- ) 44 .dwchar ;
+: .blinky ( -- ) 0  .dwchar ;  \ Blinky
+: .cross  ( -- ) 2  .dwchar ;  \ Erasable (by pacman)
+: .pmrgt  ( -- ) 4  .dwchar ;
+: .pmgo   ( -- ) 6  .dwchar ;
+: .llc    ( -- ) 8  .dwchar ;
+: .lrc    ( -- ) 10 .dwchar ;
+: .hbar   ( -- ) 12 .dwchar ;
+: .vbar   ( -- ) 14 .dwchar ;
+: .ulc    ( -- ) 16 .dwchar ;
+: .urc    ( -- ) 18 .dwchar ;
+: .ppl    ( -- ) 20 .dwchar ;  \ Erasable (by pacman)
+: .tdn    ( -- ) 22 .dwchar ;
+: .tup    ( -- ) 24 .dwchar ;
+: .trg    ( -- ) 26 .dwchar ;
+: .tlf    ( -- ) 28 .dwchar ;
+: .west   ( -- ) 30 .dwchar ;
+: .east   ( -- ) 32 .dwchar ;
+: .south  ( -- ) 34 .dwchar ;
+: .north  ( -- ) 36 .dwchar ;
+: .door   ( -- ) 38 .dwchar ;
+: .pmlft  ( -- ) 40 .dwchar ;
+: .pmupw  ( -- ) 42 .dwchar ;
+: .pmdnw  ( -- ) 44 .dwchar ;
+: .inky   ( -- ) 46 .dwchar ;
+: .pinky  ( -- ) 48 .dwchar ;
+: .clyde  ( -- ) 50 .dwchar ;
 
 \ Select custom character set.
 : cus_cset.select ( -- )
@@ -875,7 +964,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ CHAR K Cross
 \ CHAR L Power pellet
 \ CHAR M Pacman going right
-\ CHAR N Ghost
+\ CHAR N Ghost (Blinky)
 \ CHAR O West
 \ CHAR P East
 \ CHAR Q South
@@ -883,7 +972,10 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ CHAR T Door
 \ CHAR U Pacman going left
 \ CHAR V Pacman going upward
-\ CHAR W Pacman going downward -- see also .grid-char
+\ CHAR W Pacman going downward
+\ CHAR X Ghost (Inky)
+\ CHAR Y Ghost (Pinky)
+\ CHAR Z Ghost (Clyde) -- see also .grid-char
 
 80 #col 2 * - CONSTANT x0
 
@@ -901,7 +993,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ cursor position.
 : .grid-char ( grid-char -- )
   DUP BL = IF DROP 2 SPACES EXIT THEN
-  DUP [CHAR] A [CHAR] W 1+ WITHIN 0= IF
+  DUP [CHAR] A [CHAR] Z 1+ WITHIN 0= IF
     S" .grid-char: illegal character" crash-and-burn
   THEN
 
@@ -920,7 +1012,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   [CHAR] K case? IF .cross   EXIT THEN
   [CHAR] L case? IF .ppl     EXIT THEN
   [CHAR] M case? IF .pmrgt   EXIT THEN
-  [CHAR] N case? IF .ghost   EXIT THEN
+  [CHAR] N case? IF .blinky  EXIT THEN
   [CHAR] O case? IF .west    EXIT THEN
   [CHAR] P case? IF .east    EXIT THEN
   [CHAR] Q case? IF .south   EXIT THEN
@@ -928,7 +1020,10 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   [CHAR] T case? IF .door    EXIT THEN
   [CHAR] U case? IF .pmlft   EXIT THEN
   [CHAR] V case? IF .pmupw   EXIT THEN
-  [CHAR] W case? IF .pmdnw        THEN ;
+  [CHAR] W case? IF .pmdnw   EXIT THEN
+  [CHAR] X case? IF .inky    EXIT THEN
+  [CHAR] Y case? IF .pinky   EXIT THEN
+  [CHAR] Z case? IF .clyde        THEN ;
 
 \ ANS94 3.2.3.3 Return stack:
 \ A program shall not access from within a DO-LOOP values
@@ -1028,6 +1123,10 @@ END-STRUCTURE
 4 CONSTANT dir_unspec
 5 CONSTANT dir_blocked
 
+4 CONSTANT #ghosts
+#ghosts 1+ CONSTANT #entities
+CREATE entvec #entities CELLS ALLOT
+
 : bitclear ( val bitno -- val-new )
   1 SWAP LSHIFT INVERT AND ;
 
@@ -1073,7 +1172,7 @@ END-STRUCTURE
 
 \ Note: ghost.dirselect guarantees us that both pcol# and
 \ vrow# are even.
-: can-move-in-dir ( self dir -- flag )
+: can-move-in-dir? ( self dir -- flag )
   case!            \ S: self
   >R               \ S: -- ; R: self
   dir_left  case? IF
@@ -1173,7 +1272,7 @@ END-STRUCTURE
   \ S: self\bitmap
   dir_right 1+ dir_up DO
     DUP I bitset? IF \ Direction I is a priori viable
-      OVER I can-move-in-dir \ Check for a possible obstacle
+      OVER I can-move-in-dir? \ Check for a possible obstacle
       0= IF        \ Blocked in direction I
         I bitclear
       THEN
@@ -1246,7 +1345,7 @@ END-STRUCTURE
     \ Perform a first entity (ghost, at this point) display.
     R@ e.pcol# C@ x0 +
       R@ e.vrow# C@ >grid-space
-      AT-XY  .ghost
+      AT-XY  R@ entity.display
     R@ e.cdir C@  R> e.pdir C!  EXIT
   THEN
 
@@ -1326,7 +1425,7 @@ END-STRUCTURE
   2DUP  R@ e.vrow# C!  R@ e.pcol# C!
 
   \ Display entity at new coordinates.
-  SWAP x0 + SWAP >grid-space AT-XY .ghost
+  SWAP x0 + SWAP >grid-space AT-XY R@ entity.display
 
   -1 -1 [CHAR] G R@ ghost.print 2DROP
 
@@ -1357,10 +1456,6 @@ END-STRUCTURE
 \ Method invokator.
 : :: ( method-xt-addr -- ) @ EXECUTE ;
 
-4 CONSTANT #ghosts
-#ghosts 1+ CONSTANT #entities
-CREATE entvec #entities CELLS ALLOT
-
 entvec
   \ We want Pacman to be the first entry in the entity vector
   \ so that he gets first class treatment scheduling wise.
@@ -1368,25 +1463,42 @@ entvec
   34 32 TRUE dir_right pacman
   OVER ! CELL+
 
+  \ Blinky
   entity.new ghost0
-  18 30 FALSE dir_up ghost0    \ NW ghost
+  14 32 FALSE dir_left ghost0 \ N central ghost (Blinky)
   OVER ! CELL+
 
   entity.new ghost1
-  22 34 FALSE dir_left ghost1  \ SE ghost
+  20 30 FALSE dir_down ghost1 \ West ghost (Inky)
   OVER ! CELL+
 
   entity.new ghost2
-  18 34 FALSE dir_down ghost2  \ NE ghost
+  20 32 FALSE dir_up ghost2  \ Central ghost (Pinky)
   OVER ! CELL+
 
   entity.new ghost3
-  22 30 FALSE dir_up ghost3    \ SW ghost.
+  20 34 FALSE dir_left ghost3 \ East ghost (Clyde)
   OVER ! CELL+
 DROP               \ Last defined entity
 
-\ Debugging support.
-entvec 1 CELLS + @ CONSTANT g0
+\ Entity method (kind of).
+\ This is not a proper implementation and will have to be
+\ revisited. We should have an entity instance number and use
+\ that as an offset to an array of function pointers.
+:NONAME ( self -- )
+  \ Assuming current ghost is not in the frightened state.
+  entvec 1 CELLS + \ S: self\entvec-ptr
+  OVER OVER @      \ S: self\entvec-ptr\self\entvec-ptr@
+  = IF 2DROP .blinky EXIT THEN
+  1 CELLS + OVER OVER @ \ S: self\entvec-ptr\self\entvec-ptr@
+  = IF 2DROP .inky   EXIT THEN
+  1 CELLS + OVER OVER @ \ S: self\entvec-ptr\self\entvec-ptr@
+  = IF 2DROP .pinky  EXIT THEN
+  1 CELLS + OVER OVER @ \ S: self\entvec-ptr\self\entvec-ptr@
+  = IF 2DROP .clyde  EXIT THEN
+  
+  S" entity.display: unknown target" crash-and-burn ;
+IS entity.display
 
 \ -------------------------------------------------------------
 \ Entry point here.
