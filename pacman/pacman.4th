@@ -67,7 +67,7 @@ IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
 2VARIABLE suptim  \ Semantics need clarification
 VARIABLE y0       \ Used by 'display-line' for inits purposes
 VARIABLE serialno \ Instance number generator.
-200 VALUE clkperiod \ Expressed in milliseconds
+500 VALUE clkperiod \ Expressed in milliseconds
 
 \ -------------------------------------------------------------
 \ Grid specification.
@@ -898,7 +898,6 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 : dfl_cset.select ( -- )
   $0F EMIT ;            \ GL <- G0 (LS0 locking shift)
 
-
 : initvars ( -- )
   0 serialno !          \ Entity serial number counter
   0. hiscore 2!         \ Make this somehow persistent!
@@ -1024,7 +1023,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   [CHAR] W case? IF .pmdnw   EXIT THEN
   [CHAR] X case? IF .inky    EXIT THEN
   [CHAR] Y case? IF .pinky   EXIT THEN
-  [CHAR] Z case? IF .clyde        THEN ;
+  .clyde ;
 
 \ ANS94 3.2.3.3 Return stack:
 \ A program shall not access from within a DO-LOOP values
@@ -1046,6 +1045,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 
 \ Display the initial grid contents.
 \ Note: this assumes cus_cset.select is in effect.
+\ By design no instanciated object should be referenced here.
 : .initial-grid ( -- )
   \ 33 columns (double width characters) by 23 rows.
   S" AEEEEEEEGEEEEEEEEEEEEEEEGEEEEEEEB" 0  display-line
@@ -1101,20 +1101,19 @@ IFGF warnings off
 IFGF warnings on
 
 BEGIN-STRUCTURE entity
-  FIELD:  e.strat  \ Strategy method
-  FIELD:  e.dispnf \ Display in non-frightened mode
-  FIELD:  e.resurr \ Clock ticks count until we're back
-  CFIELD: e.vrow#  \ Virtual row number
-  CFIELD: e.pcol#  \ Physical column number
-  CFIELD: e.ivrow# \ Interfering virtual row number
-  CFIELD: e.ipcol# \ Interfering pcol number
-  CFIELD: e.igchr  \ Interfering grid character
-  CFIELD: e.cdir   \ Current direction
-  CFIELD: e.pdir   \ Previous direction
-  CFIELD: e.pacf   \ NZ if Pacman
-  CFIELD: e.superf \ NZ if Pacman and supercharged
-  CFIELD: e.alivef \ NZ if ghost and not neutralized
-  CFIELD: e.inum   \ Instance serial number
+  FIELD:  e.strategy \ Strategy (moving) method
+  FIELD:  e.display  \ Display entity
+  FIELD:  e.resurr   \ Clock ticks count until we're back
+  CFIELD: e.vrow#    \ Virtual row number
+  CFIELD: e.pcol#    \ Physical column number
+  CFIELD: e.ivrow#   \ Interfering virtual row number
+  CFIELD: e.ipcol#   \ Interfering pcol number
+  CFIELD: e.igchr    \ Interfering grid character
+  CFIELD: e.cdir     \ Current direction
+  CFIELD: e.inited   \ TRUE if first display has been performed
+  CFIELD: e.superf   \ NZ if Pacman and supercharged
+  CFIELD: e.alivef   \ NZ if ghost and not neutralized
+  CFIELD: e.inum     \ Instance serial number
 END-STRUCTURE
 
 \ Method invokator.
@@ -1126,22 +1125,32 @@ END-STRUCTURE
 1 CONSTANT dir_left
 2 CONSTANT dir_down
 3 CONSTANT dir_right
-4 CONSTANT dir_unspec
-5 CONSTANT dir_blocked
+4 CONSTANT dir_blocked
 
-\ Display non-frightened ghost.
-: entity.dispnf ( self -- )
-  e.inum C@ case!
-  1 case? IF .blinky EXIT THEN
-  2 case? IF .inky EXIT THEN
-  3 case? IF .pinky EXIT THEN
-  4 case? IF .clyde EXIT THEN
+\ Display pacman--rendition depends on the current direction.
+: .pacman ( self -- )
+  e.cdir C@ case!
+  dir_right case? IF .pmrgt EXIT THEN
+  dir_left  case? IF .pmlft EXIT THEN
+  dir_up    case? IF .pmupw EXIT THEN
+  dir_down  case? IF .pmdnw EXIT THEN
 
-  S" entity.dispnf: unknown instance number" crash-and-burn ;
+  \ XXX: is the the point at which we need a record of
+  \ the previous direction?
+  \ Not unless we ever switch to dir_blocked!!!
+  S" .pacman: unmet pre-condition" crash-and-burn ;
 
-4 CONSTANT #ghosts
-#ghosts 1+ CONSTANT #entities
-CREATE entvec #entities CELLS ALLOT
+\ Display entity. Ghosts are handled as not frightened
+\ for the time being.
+: entity.display ( self -- )
+  DUP e.inum C@ case!
+  0 case? IF      .pacman EXIT THEN
+  1 case? IF DROP .blinky EXIT THEN
+  2 case? IF DROP .inky   EXIT THEN
+  3 case? IF DROP .pinky  EXIT THEN
+  4 case? IF DROP .clyde  EXIT THEN
+
+  S" entity.display: unknown instance number" crash-and-burn ;
 
 : bitclear ( val bitno -- val-new )
   1 SWAP LSHIFT INVERT AND ;
@@ -1218,7 +1227,7 @@ CREATE entvec #entities CELLS ALLOT
       \ In essence, the ghosts' pen door _is_ an erasable but
       \ only for the ghosts when they are inside of the pen.
       door =   \ Ghosts' pen door
-      R@ e.pacf C@ 0= AND \ We are a ghost
+      R@ e.inum C@ 0<> AND \ We are not pacman
       R@ in-ghosts-pen? AND      
     THEN
   ELSE
@@ -1238,9 +1247,10 @@ CREATE entvec #entities CELLS ALLOT
   cus_cset.select
   KEY DROP ;
 
-: ghost.print ( pcol-new vrow-new debug-tag-char self --
+: ghost.debug-print ( pcol-new vrow-new debug-tag-char self --
     pcol-new vrow-new )
-  debug 1 AND 0= IF 2DROP EXIT THEN
+  DUP e.inum C@ 0= IF 2DROP EXIT THEN \ If not a ghost
+  debug 1 AND 0=   IF 2DROP EXIT THEN \ If not in debug mode
   debug-enter
   >R
   EMIT [CHAR] : EMIT SPACE
@@ -1339,12 +1349,6 @@ CREATE entvec #entities CELLS ALLOT
 
 \ Entity method.
 : entity.move ( self -- )
-  \ TODO: handle Pacman's moves.
-  DUP e.pacf C@ IF DROP EXIT THEN
-
-  \ From here on, we're not pacman.
-  \ At some point, we should make sure we are alive...
-
   \ The current direction should be in [dir_up..dir_right]
   \ Bail out now if that's not the case.
   \ dir_blocked should only be in effect for pacman, which
@@ -1353,25 +1357,28 @@ CREATE entvec #entities CELLS ALLOT
   R@ e.cdir C@ dir_up dir_right 1+ WITHIN 0= IF
     S" entity.move: illegal current direction" crash-and-burn
   THEN
-
   \ From here on, cdir has been validated.
 
-  \ If the previous direction is unspecified
-  R@ e.pdir C@ dir_unspec = IF
-    \ Perform a first entity (ghost, at this point) display.
+  \ If this is the first display request.
+  R@ e.inited C@ 0= IF
+    \ Perform a first entity display.
     R@ e.pcol# C@ x0 +
       R@ e.vrow# C@ >grid-space
-      AT-XY  R@ DUP e.dispnf ::
-    R@ e.cdir C@  R> e.pdir C!  EXIT
+      AT-XY  R@ DUP e.display ::
+    TRUE R> e.inited C! EXIT
   THEN
 
-  R@ ghost.dirselect R@ e.cdir C!
+  R@ e.inum C@ IF  \ If we are a ghost
+    R@ ghost.dirselect R@ e.cdir C!
+  \ XXX ELSE all bets are off!!!
+  THEN
 
-  \ pdir is not dir_unspec, vrow# may or may not be even
-  \ and cdir is viable. We are now in a position such that we
-  \ can actually alter the entity's coordinates.
+  \ The current entity has been displayed at least once, vrow#
+  \ may or may not be even and cdir is viable. We are now in a
+  \ position such that we can actually alter the entity's
+  \ coordinates.
 
-  -1 -1 [CHAR] A R@ ghost.print 2DROP
+  -1 -1 [CHAR] A R@ ghost.debug-print 2DROP
 
   \ Blank current position on screen.
   R@ e.pcol# C@ x0 + R@ e.vrow# C@ >grid-space AT-XY 2 SPACES
@@ -1384,18 +1391,18 @@ CREATE entvec #entities CELLS ALLOT
   dir_down  case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1+ THEN
   \ pcol-new\vrow-new
 
-  [CHAR] B R@ ghost.print
+  [CHAR] B R@ ghost.debug-print
 
   \ Check whether we previously saved an interfering character.
   \ If so, re-display it at the saved coordinates.
   R@ .interfering
 
-  [CHAR] C R@ ghost.print
+  [CHAR] C R@ ghost.debug-print
 
   \ Defer the "save-under" logic until pcol-new is even.
   \ pcol-new\vrow-new
   OVER 1 AND 0= IF
-    [CHAR] D R@ ghost.print
+    [CHAR] D R@ ghost.debug-print
 
     \ Are we stepping on anyone's toes (interfering)?
     \ Note: interference is checked at the new coordinates.
@@ -1426,7 +1433,7 @@ CREATE entvec #entities CELLS ALLOT
         \ Following heuristic may only work when going up!!!
         2DUP  -2 AND R@ e.ivrow# C! \ Force even row#
           R@ e.ipcol# C!
-        [CHAR] E R@ ghost.print
+        [CHAR] E R@ ghost.debug-print
       THEN
     ELSE
       DROP             \ Drop interfering character
@@ -1435,76 +1442,78 @@ CREATE entvec #entities CELLS ALLOT
     THEN
   THEN
 
-  [CHAR] F R@ ghost.print
+  [CHAR] F R@ ghost.debug-print
 
   \ Update entity's coordinates fields.
   2DUP  R@ e.vrow# C!  R@ e.pcol# C!
 
   \ Display entity at new coordinates.
-  SWAP x0 + SWAP >grid-space AT-XY R@ DUP e.dispnf ::
+  SWAP x0 + SWAP >grid-space AT-XY R@ DUP e.display ::
 
-  -1 -1 [CHAR] G R@ ghost.print 2DROP
+  -1 -1 [CHAR] G R@ ghost.debug-print 2DROP
 
   R> DROP ;
 
 \ Entity constructor.
-: entity.new ( "name" -- address ; vrow pcol ispm cdir -- )
+: entity.new ( "name" -- address ; vrow pcol cdir -- )
   CREATE
     entity ALLOT
-  DOES>            \ vrow\pcol\ispm\cdir\address
-    >R             \ vrow\pcol\ispm\cdir, R: address
+  DOES>            \ vrow\pcol\cdir\address
+    >R             \ vrow\pcol\cdir, R: address
     \ Initialize default valued fields.
-    ['] entity.move   R@ e.strat  !
-    ['] entity.dispnf R@ e.dispnf !
-    0                 R@ e.resurr !
-    0                 R@ e.ivrow# C!
-    0                 R@ e.ipcol# C!
-    0                 R@ e.igchr  C!
-    dir_unspec        R@ e.pdir   C!
-    FALSE             R@ e.superf C!
-    TRUE              R@ e.alivef C!
-    serialno @ DUP    R@ e.inum   C!
+    ['] entity.move    R@ e.strategy !
+    ['] entity.display R@ e.display  !
+    0                  R@ e.resurr   !
+    0                  R@ e.ivrow#   C!
+    0                  R@ e.ipcol#   C!
+    0                  R@ e.igchr    C!
+    FALSE              R@ e.inited   C!
+    FALSE              R@ e.superf   C!
+    TRUE               R@ e.alivef   C!
+    serialno @ DUP     R@ e.inum     C!
       1+ serialno !
     \ Initialize fields from arguments.
-    R@ e.cdir C!   \ vrow\pcol\ispm
-    R@ e.pacf C!   \ vrow\pcol
+    R@ e.cdir  C!  \ vrow\pcol
     R@ e.pcol# C!  \ vrow
     R@ e.vrow# C!  \ --
     R> ;           \ Return 'address'
+
+4 CONSTANT #ghosts
+#ghosts 1+ CONSTANT #entities
+CREATE entvec #entities CELLS ALLOT
 
 entvec
   \ We want Pacman to be the first entry in the entity vector
   \ so that he gets first class treatment scheduling wise.
   entity.new pacman
-  34 32 TRUE dir_right pacman
+  34 32 dir_right pacman
   OVER ! CELL+
 
-  \ Blinky
   entity.new ghost0
-  14 32 FALSE dir_left ghost0 \ N central ghost (Blinky)
+  14 32 dir_left ghost0 \ N central ghost (Blinky)
   OVER ! CELL+
 
   entity.new ghost1
-  20 30 FALSE dir_down ghost1 \ West ghost (Inky)
+  20 30 dir_down ghost1 \ West ghost (Inky)
   OVER ! CELL+
 
   entity.new ghost2
-  20 32 FALSE dir_up ghost2  \ Central ghost (Pinky)
+  20 32 dir_up ghost2   \ Central ghost (Pinky)
   OVER ! CELL+
 
   entity.new ghost3
-  20 34 FALSE dir_left ghost3 \ East ghost (Clyde)
+  20 34 dir_left ghost3 \ East ghost (Clyde)
   OVER ! CELL+
-DROP               \ Last defined entity
+DROP                    \ Last defined entity
 
 \ -------------------------------------------------------------
 \ Entry point here.
 
 : _main ( -- )
   BEGIN
-\   entvec @           DUP e.strat :: \ Pacman's move
-    entvec 1 CELLS + #ghosts 0 DO
-      DUP @ DUP e.strat :: \ Move the current ghost
+\   entvec @ DUP e.strategy :: \ Pacman's move
+    entvec 1 CELLS + #ghosts 0 ?DO
+      DUP @ DUP e.strategy :: \ Move the current ghost
       CELL+
     LOOP DROP
     clkperiod MS
