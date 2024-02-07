@@ -66,9 +66,8 @@ IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
 2VARIABLE bonus   \ Semantics need clarification
 2VARIABLE suptim  \ Semantics need clarification
 VARIABLE y0       \ Used by 'display-line' for inits purposes
+VARIABLE serialno \ Instance number generator.
 200 VALUE clkperiod \ Expressed in milliseconds
-
-DEFER entity.display
 
 \ -------------------------------------------------------------
 \ Grid specification.
@@ -810,7 +809,7 @@ CREATE softfont
 %110000 C, %110111 C, %1111 C, \ Column #3
 %111100 C, %101111 C, %0011 C, \ Column #4
 %111100 C, %011111 C, %0011 C, \ Column #5
-%111100 C, %110100 C, %1110 C, \ Column #6
+%111100 C, %111100 C, %1110 C, \ Column #6
 %111100 C, %111100 C, %1111 C, \ Column #7
 %111111 C, %111111 C, %0011 C, \ Column #8
 %111111 C, %111111 C, %0011 C, \ Column #9
@@ -821,7 +820,7 @@ CREATE softfont
 %111111 C, %111111 C, %0011 C, \ Column #0
 %111111 C, %111111 C, %0011 C, \ Column #1
 %111100 C, %111100 C, %1111 C, \ Column #2
-%111100 C, %110100 C, %1110 C, \ Column #3
+%111100 C, %111100 C, %1110 C, \ Column #3
 %111100 C, %011111 C, %0011 C, \ Column #4
 %111100 C, %101111 C, %0011 C, \ Column #5
 %110000 C, %110111 C, %1111 C, \ Column #6
@@ -865,17 +864,17 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ $21 is the first user defined character in the software font.
 : .dwchar ( offs -- ) $21 + DUP EMIT 1+ EMIT ;
 
-: .blinky ( -- ) 0  .dwchar ;  \ Blinky
-: .cross  ( -- ) 2  .dwchar ;  \ Erasable (by pacman)
-: .pmrgt  ( -- ) 4  .dwchar ;
-: .pmgo   ( -- ) 6  .dwchar ;
+: .blinky ( -- ) 0  .dwchar ;  \ Blinky (instanciated)
+: .cross  ( -- ) 2  .dwchar ;  \ Erasable/pacman
+: .pmrgt  ( -- ) 4  .dwchar ;  \ Pacman -> right (instanciated)
+: .pmgo   ( -- ) 6  .dwchar ;  \ Pacman gobbling
 : .llc    ( -- ) 8  .dwchar ;
 : .lrc    ( -- ) 10 .dwchar ;
 : .hbar   ( -- ) 12 .dwchar ;
 : .vbar   ( -- ) 14 .dwchar ;
 : .ulc    ( -- ) 16 .dwchar ;
 : .urc    ( -- ) 18 .dwchar ;
-: .ppl    ( -- ) 20 .dwchar ;  \ Erasable (by pacman)
+: .ppl    ( -- ) 20 .dwchar ;  \ Erasable/pacman
 : .tdn    ( -- ) 22 .dwchar ;
 : .tup    ( -- ) 24 .dwchar ;
 : .trg    ( -- ) 26 .dwchar ;
@@ -884,13 +883,13 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 : .east   ( -- ) 32 .dwchar ;
 : .south  ( -- ) 34 .dwchar ;
 : .north  ( -- ) 36 .dwchar ;
-: .door   ( -- ) 38 .dwchar ;
-: .pmlft  ( -- ) 40 .dwchar ;
-: .pmupw  ( -- ) 42 .dwchar ;
-: .pmdnw  ( -- ) 44 .dwchar ;
-: .inky   ( -- ) 46 .dwchar ;
-: .pinky  ( -- ) 48 .dwchar ;
-: .clyde  ( -- ) 50 .dwchar ;
+: .door   ( -- ) 38 .dwchar ;  \ Erasable/ghosts inside the pen
+: .pmlft  ( -- ) 40 .dwchar ;  \ Pacman -> left
+: .pmupw  ( -- ) 42 .dwchar ;  \ Pacman -> up
+: .pmdnw  ( -- ) 44 .dwchar ;  \ Pacman -> down
+: .inky   ( -- ) 46 .dwchar ;  \ Inky (instanciated)
+: .pinky  ( -- ) 48 .dwchar ;  \ Pinky (instanciated)
+: .clyde  ( -- ) 50 .dwchar ;  \ Clyde (instanciated)
 
 \ Select custom character set.
 : cus_cset.select ( -- )
@@ -901,6 +900,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 
 
 : initvars ( -- )
+  0 serialno !          \ Entity serial number counter
   0. hiscore 2!         \ Make this somehow persistent!
   0. score  2!
   3. lives  2!          \ This is clearly overkill
@@ -910,7 +910,8 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 
 : initialize ( -- )
   initvars
-  IFGF TIME&DATE 2DROP 2DROP DROP seed ! \ PRNG initialization
+  IFGF TIME&DATE 2DROP 2DROP DROP \ PRNG initialization
+  IFGF ?DUP IF seed ! THEN        \ The seed must be non-zero
   -cursor               \ Cursor off
   -autorepeat           \ Disable keyboard autorepeat
   esc EMIT ."  F"       \ VT400 mode, 7-bit control (PRM/88)
@@ -1100,19 +1101,24 @@ IFGF warnings off
 IFGF warnings on
 
 BEGIN-STRUCTURE entity
-  FIELD:  e.strat  \ strategy method
-  FIELD:  e.resurr \ clock ticks count until we're back
-  CFIELD: e.vrow#  \ virtual row number
-  CFIELD: e.pcol#  \ physical column number
-  CFIELD: e.ivrow# \ interfering virtual row number
-  CFIELD: e.ipcol# \ interfering pcol number
-  CFIELD: e.igchr  \ interfering grid character
-  CFIELD: e.cdir   \ current direction
-  CFIELD: e.pdir   \ previous direction
+  FIELD:  e.strat  \ Strategy method
+  FIELD:  e.dispnf \ Display in non-frightened mode
+  FIELD:  e.resurr \ Clock ticks count until we're back
+  CFIELD: e.vrow#  \ Virtual row number
+  CFIELD: e.pcol#  \ Physical column number
+  CFIELD: e.ivrow# \ Interfering virtual row number
+  CFIELD: e.ipcol# \ Interfering pcol number
+  CFIELD: e.igchr  \ Interfering grid character
+  CFIELD: e.cdir   \ Current direction
+  CFIELD: e.pdir   \ Previous direction
   CFIELD: e.pacf   \ NZ if Pacman
   CFIELD: e.superf \ NZ if Pacman and supercharged
   CFIELD: e.alivef \ NZ if ghost and not neutralized
+  CFIELD: e.inum   \ Instance serial number
 END-STRUCTURE
+
+\ Method invokator.
+: :: ( method-xt-addr -- ) @ EXECUTE ;
 
 \ We define this enumeration so that opposite(dir) is
 \ dir 2 + 3 AND (modulo 4) for dir in [0..3].
@@ -1122,6 +1128,16 @@ END-STRUCTURE
 3 CONSTANT dir_right
 4 CONSTANT dir_unspec
 5 CONSTANT dir_blocked
+
+\ Display non-frightened ghost.
+: entity.dispnf ( self -- )
+  e.inum C@ case!
+  1 case? IF .blinky EXIT THEN
+  2 case? IF .inky EXIT THEN
+  3 case? IF .pinky EXIT THEN
+  4 case? IF .clyde EXIT THEN
+
+  S" entity.dispnf: unknown instance number" crash-and-burn ;
 
 4 CONSTANT #ghosts
 #ghosts 1+ CONSTANT #entities
@@ -1345,7 +1361,7 @@ CREATE entvec #entities CELLS ALLOT
     \ Perform a first entity (ghost, at this point) display.
     R@ e.pcol# C@ x0 +
       R@ e.vrow# C@ >grid-space
-      AT-XY  R@ entity.display
+      AT-XY  R@ DUP e.dispnf ::
     R@ e.cdir C@  R> e.pdir C!  EXIT
   THEN
 
@@ -1425,7 +1441,7 @@ CREATE entvec #entities CELLS ALLOT
   2DUP  R@ e.vrow# C!  R@ e.pcol# C!
 
   \ Display entity at new coordinates.
-  SWAP x0 + SWAP >grid-space AT-XY R@ entity.display
+  SWAP x0 + SWAP >grid-space AT-XY R@ DUP e.dispnf ::
 
   -1 -1 [CHAR] G R@ ghost.print 2DROP
 
@@ -1438,23 +1454,23 @@ CREATE entvec #entities CELLS ALLOT
   DOES>            \ vrow\pcol\ispm\cdir\address
     >R             \ vrow\pcol\ispm\cdir, R: address
     \ Initialize default valued fields.
-    ['] entity.move R@ e.strat  !
-    0               R@ e.resurr !
-    0               R@ e.ivrow# C!
-    0               R@ e.ipcol# C!
-    0               R@ e.igchr  C!
-    dir_unspec      R@ e.pdir   C!
-    FALSE           R@ e.superf C!
-    TRUE            R@ e.alivef C!
+    ['] entity.move   R@ e.strat  !
+    ['] entity.dispnf R@ e.dispnf !
+    0                 R@ e.resurr !
+    0                 R@ e.ivrow# C!
+    0                 R@ e.ipcol# C!
+    0                 R@ e.igchr  C!
+    dir_unspec        R@ e.pdir   C!
+    FALSE             R@ e.superf C!
+    TRUE              R@ e.alivef C!
+    serialno @ DUP    R@ e.inum   C!
+      1+ serialno !
     \ Initialize fields from arguments.
     R@ e.cdir C!   \ vrow\pcol\ispm
     R@ e.pacf C!   \ vrow\pcol
     R@ e.pcol# C!  \ vrow
     R@ e.vrow# C!  \ --
     R> ;           \ Return 'address'
-
-\ Method invokator.
-: :: ( method-xt-addr -- ) @ EXECUTE ;
 
 entvec
   \ We want Pacman to be the first entry in the entity vector
@@ -1480,25 +1496,6 @@ entvec
   20 34 FALSE dir_left ghost3 \ East ghost (Clyde)
   OVER ! CELL+
 DROP               \ Last defined entity
-
-\ Entity method (kind of).
-\ This is not a proper implementation and will have to be
-\ revisited. We should have an entity instance number and use
-\ that as an offset to an array of function pointers.
-:NONAME ( self -- )
-  \ Assuming current ghost is not in the frightened state.
-  entvec 1 CELLS + \ S: self\entvec-ptr
-  OVER OVER @      \ S: self\entvec-ptr\self\entvec-ptr@
-  = IF 2DROP .blinky EXIT THEN
-  1 CELLS + OVER OVER @ \ S: self\entvec-ptr\self\entvec-ptr@
-  = IF 2DROP .inky   EXIT THEN
-  1 CELLS + OVER OVER @ \ S: self\entvec-ptr\self\entvec-ptr@
-  = IF 2DROP .pinky  EXIT THEN
-  1 CELLS + OVER OVER @ \ S: self\entvec-ptr\self\entvec-ptr@
-  = IF 2DROP .clyde  EXIT THEN
-  
-  S" entity.display: unknown target" crash-and-burn ;
-IS entity.display
 
 \ -------------------------------------------------------------
 \ Entry point here.
