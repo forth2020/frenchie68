@@ -9,6 +9,9 @@
 \ exec < /dev/ttyS0
 \ exec /usr/bin/setsid -c \
 \    /sbin/agetty -8 -c -s -L ttyS0 38400 vt420
+\
+\ You might elect to mess up with systemd's configuration.
+\ I do not.
 
 DECIMAL
 MARKER wasteit
@@ -81,6 +84,8 @@ CREATE grid gridsize ALLOT
 \ Well known symbols.
 
 CHAR T CONSTANT door
+CHAR K CONSTANT cross
+CHAR L CONSTANT pellet
 
 \ -------------------------------------------------------------
 \ Cursor control.
@@ -892,10 +897,10 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 : .clyde  ( -- ) 50 .dwchar ;  \ Clyde (instanciated)
 
 \ Select custom character set.
-: cus_cset.select ( -- )
+: custom-charset-select ( -- )
   $0E EMIT ;            \ GL <- G1 (LS1 locking shift)
 
-: dfl_cset.select ( -- )
+: default-charset-select ( -- )
   $0F EMIT ;            \ GL <- G0 (LS0 locking shift)
 
 : initvars ( -- )
@@ -915,16 +920,21 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   -autorepeat           \ Disable keyboard autorepeat
   esc EMIT ."  F"       \ VT400 mode, 7-bit control (PRM/88)
   decdld                \ Upload charset definition
-  cus_cset.select ;     \ Select custom character set
+  custom-charset-select ;     \ Select custom character set
 
 : finalize ( -- )
-  dfl_cset.select       \ Select custom character set
+  default-charset-select       \ Select custom character set
   24 79 AT-XY CR
   +autorepeat           \ Re-enable keyboard autorepeat
   +cursor ;             \ Cursor on
 
 : .var ( varaddr -- )
   2@ <# # # # # # # # # #> TYPE ;
+
+: update-score ( -- )
+  default-charset-select
+  0 4  AT-XY score   .var
+  custom-charset-select ;
 
 \ This routine should only be called when the default character
 \ set is in effect. Otherwise things will look ugly.
@@ -939,7 +949,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ Print status headers. Forces in the default character set and
 \ leaves in custom character set mode.
 : .init-sitrep ( -- )
-  dfl_cset.select
+  default-charset-select
   0 0  AT-XY ." Highscore"
   0 3  AT-XY ." Score"
   0 6  AT-XY ." Lives"
@@ -947,7 +957,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   0 12 AT-XY ." Bonus"
   0 15 AT-XY ." Supertime"
   .sitrep
-  cus_cset.select ;
+  custom-charset-select ;
 
 \ Grid definition language:
 \ BL     2 SPACES
@@ -984,7 +994,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   BEGIN DEPTH WHILE DROP REPEAT ;
 
 : crash-and-burn ( exitmsg-addr exitmsg-bcnt )
-  dfl_cset.select
+  default-charset-select
   0 23 AT-XY TYPE
   CR .S
   drain +cursor QUIT ;
@@ -1044,7 +1054,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   LOOP DROP ;
 
 \ Display the initial grid contents.
-\ Note: this assumes cus_cset.select is in effect.
+\ Note: this assumes custom-charset-select is in effect.
 \ By design no instanciated object should be referenced here.
 : .initial-grid ( -- )
   \ 33 columns (double width characters) by 23 rows.
@@ -1102,17 +1112,22 @@ IFGF warnings on
 
 BEGIN-STRUCTURE entity
   FIELD:  e.strategy \ Strategy (moving) method
-  FIELD:  e.display  \ Display entity
-  FIELD:  e.resurr   \ Clock ticks count until we're back
+  FIELD:  e.display  \ Display method
+  FIELD:  e.resurr   \ # Clock ticks till we're back (ghosts)
   CFIELD: e.vrow#    \ Virtual row number
   CFIELD: e.pcol#    \ Physical column number
-  CFIELD: e.ivrow#   \ Interfering virtual row number
-  CFIELD: e.ipcol#   \ Interfering pcol number
-  CFIELD: e.igchr    \ Interfering grid character
+  CFIELD: e.ivrow#   \ Interfering virtual row number (ghosts)
+  CFIELD: e.ipcol#   \ Interfering pcol number (ghosts)
+  CFIELD: e.igchr    \ Interfering grid character (ghosts)
+  CFIELD: e.pcol0    \ Initial pcol number
+  CFIELD: e.vrow0    \ Initial vrow number
   CFIELD: e.cdir     \ Current direction
+  CFIELD: e.pdir     \ Previous direction (pacman)
+  CFIELD: e.idir     \ Intended direction (pacman)
   CFIELD: e.inited   \ TRUE if first display has been performed
-  CFIELD: e.superf   \ NZ if Pacman and supercharged
-  CFIELD: e.alivef   \ NZ if ghost and not neutralized
+  CFIELD: e.issuper  \ NZ if Pacman and supercharged
+  CFIELD: e.isalive  \ NZ if ghost and not neutralized
+  CFIELD: e.gobbling \ # Clock ticks till we're fed (pacman)
   CFIELD: e.inum     \ Instance serial number
 END-STRUCTURE
 
@@ -1126,19 +1141,31 @@ END-STRUCTURE
 2 CONSTANT dir_down
 3 CONSTANT dir_right
 4 CONSTANT dir_blocked
+5 CONSTANT dir_unspec \ Invalid except for idir (pacman)
+6 CONSTANT dir_quit \ Invalid except as retval/pacman.dirselect
 
-\ Display pacman--rendition depends on the current direction.
+\ Display pacman--rendition depends on the current direction
+\ and gobbling status. Gobbling overrides the direction
+\ indication.
 : .pacman ( self -- )
-  e.cdir C@ case!
+  DUP e.gobbling C@ ?DUP IF \ self\gobbling-cycle-count
+    .pmgo          \ Display pacman as gobbling
+    1- SWAP e.gobbling C!
+    EXIT
+  THEN
+
+  DUP e.cdir C@ DUP dir_blocked = IF
+    DROP
+    e.pdir C@
+  ELSE
+    NIP
+  THEN
+
+  case!
   dir_right case? IF .pmrgt EXIT THEN
   dir_left  case? IF .pmlft EXIT THEN
   dir_up    case? IF .pmupw EXIT THEN
-  dir_down  case? IF .pmdnw EXIT THEN
-
-  \ XXX: is the the point at which we need a record of
-  \ the previous direction?
-  \ Not unless we ever switch to dir_blocked!!!
-  S" .pacman: unmet pre-condition" crash-and-burn ;
+  dir_down  case? IF .pmdnw EXIT THEN ;
 
 \ Display entity. Ghosts are handled as not frightened
 \ for the time being.
@@ -1168,6 +1195,9 @@ END-STRUCTURE
 \ >= 2 and < 44.
 : valid-vrow? ( row -- row flag ) DUP 2 44 WITHIN ;
 
+: scorable? ( uchar -- flag )
+  DUP cross = SWAP pellet = OR ;
+
 : erasable? ( uchar -- flag )
   case!
   BL       case? IF TRUE EXIT THEN \ Blank spot
@@ -1183,6 +1213,11 @@ END-STRUCTURE
   DUP  e.vrow# C@ 16 23 WITHIN
   SWAP e.pcol# C@ 30 35 WITHIN AND ;
 
+: get-grid-char-addr ( pcol vrow -- grid-char-addr )
+  \ pcol and vrow are supposed to have been previously
+  \ validated.
+  >grid-space #col * SWAP >grid-space + grid + ;
+
 \ Returns the grid character at [vrow, pcol].
 : get-grid-char ( pcol vrow -- grid-char )
   \ Enforce assumptions.
@@ -1193,7 +1228,7 @@ END-STRUCTURE
     S" pcol# is out of bounds" crash-and-burn
   THEN
 
-  >grid-space #col * SWAP >grid-space + grid + C@ ;
+  get-grid-char-addr C@ ;
 
 \ Note: ghost.dirselect guarantees us that both pcol# and
 \ vrow# are even.
@@ -1238,13 +1273,13 @@ END-STRUCTURE
 \ Debugging support.
 : debug-enter ( -- )
   debug 0= IF EXIT THEN
-  dfl_cset.select
+  default-charset-select
   0 23 AT-XY 78 SPACES
   0 23 AT-XY ;
 
 : debug-leave ( -- )
   debug 0= IF EXIT THEN
-  cus_cset.select
+  custom-charset-select
   KEY DROP ;
 
 : ghost.debug-print ( pcol-new vrow-new debug-tag-char self --
@@ -1276,6 +1311,77 @@ END-STRUCTURE
   [CHAR] ] EMIT
   R> DROP
   debug-leave ;
+
+\ Meant for interactive (post-mortem) use.
+: .dir ( dir -- )
+  case!
+  dir_up      case? IF ." UP"      EXIT THEN
+  dir_left    case? IF ." LEFT"    EXIT THEN
+  dir_down    case? IF ." DOWN"    EXIT THEN
+  dir_right   case? IF ." RIGHT"   EXIT THEN
+  dir_blocked case? IF ." BLOCKED" EXIT THEN
+  dir_unspec  case? IF ." UNSPEC"  EXIT THEN
+  dir_quit    case? IF ." QUIT"    EXIT THEN
+  ." Unknown quantity: " case@ . ;
+
+: keyboard-input-query ( -- dir_symbol )
+  KEY? 0= IF dir_unspec EXIT THEN
+
+  KEY DUP [CHAR] q = IF DROP dir_quit EXIT THEN
+  esc <>             IF dir_unspec    EXIT THEN
+  KEY [CHAR] [ <>    IF dir_unspec    EXIT THEN
+  KEY case!
+  [CHAR] A case?     IF dir_up        EXIT THEN
+  [CHAR] B case?     IF dir_down      EXIT THEN
+  [CHAR] C case?     IF dir_right     EXIT THEN
+  [CHAR] D case?     IF dir_left      EXIT THEN
+
+  S" keyboard-input-query: no comprendo"
+    crash-and-burn ;
+
+: pacman.dirselect ( self -- new-dir )
+  \ Keyboard input overrides any previous intended direction.
+  keyboard-input-query case!
+  dir_unspec case? 0= IF \ There was some input
+    dir_quit  case? IF S" Exiting game" crash-and-burn THEN
+    \ If a direction change is requested via keyboard input:
+    \ mark it as the intended direction (idir) and proceed.
+    dir_up    case?
+    dir_down  case? OR
+    dir_left  case? OR
+    dir_right case? OR IF
+      case@ OVER e.idir C!      
+    THEN
+  THEN
+
+  \ No direction changes unless both vrow# and pcol# are even.
+  DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
+  DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
+
+  \ If idir is not dir_unspec AND we can move in idir:
+  \ - queue up idir as the return value.
+  \ - reset idir to dir_unspec.
+  \ - end of story.
+  >R
+  R@ e.idir C@ dir_unspec <> IF
+    R@ DUP e.idir C@ can-move-in-dir? IF
+      R@ e.idir C@ \ Queue up return value
+      dir_unspec R@ e.idir C!
+      R> DROP EXIT
+    THEN
+  THEN
+
+  \ Default policy: keep the current direction unless blocked.
+  R@ e.cdir C@ dir_blocked = IF
+    R> DROP dir_blocked EXIT
+  THEN
+
+  R@ DUP e.cdir C@ can-move-in-dir? IF
+    R> e.cdir C@ EXIT
+  THEN
+
+  R> DUP e.cdir C@ SWAP e.pdir C!
+  dir_blocked ;
 
 : ghost.dirselect ( self -- new-dir )
   \ No direction changes unless both vrow# and pcol# are even.
@@ -1347,52 +1453,63 @@ END-STRUCTURE
   THEN
   R> DROP ;
 
-\ Entity method.
-: entity.move ( self -- )
-  \ The current direction should be in [dir_up..dir_right]
-  \ Bail out now if that's not the case.
-  \ dir_blocked should only be in effect for pacman, which
-  \ is an indication that some keyboard input is required.
+\ Utility routine--not a method.
+: entity.initial-display ( self -- )
   >R
-  R@ e.cdir C@ dir_up dir_right 1+ WITHIN 0= IF
-    S" entity.move: illegal current direction" crash-and-burn
-  THEN
-  \ From here on, cdir has been validated.
+  R@ e.pcol# C@ x0 +
+    R@ e.vrow# C@ >grid-space
+    AT-XY  R@ DUP e.display ::
+  R> DROP ;
 
-  \ If this is the first display request.
-  R@ e.inited C@ 0= IF
-    \ Perform a first entity display.
-    R@ e.pcol# C@ x0 +
-      R@ e.vrow# C@ >grid-space
-      AT-XY  R@ DUP e.display ::
-    TRUE R> e.inited C! EXIT
-  THEN
-
-  R@ e.inum C@ IF  \ If we are a ghost
-    R@ ghost.dirselect R@ e.cdir C!
-  \ XXX ELSE all bets are off!!!
-  THEN
-
-  \ The current entity has been displayed at least once, vrow#
-  \ may or may not be even and cdir is viable. We are now in a
-  \ position such that we can actually alter the entity's
-  \ coordinates.
-
-  -1 -1 [CHAR] A R@ ghost.debug-print 2DROP
-
-  \ Blank current position on screen.
-  R@ e.pcol# C@ x0 + R@ e.vrow# C@ >grid-space AT-XY 2 SPACES
-
-  \ Update entity coordinates on the data stack.
+\ Utility routine--not a method.
+: entity.get-new-coordinates ( self -- pcol-new\vrow-new )
+  >R
   R@ e.cdir C@ case!
-  dir_left  case? IF R@ e.pcol# C@ 1- R@ e.vrow# C@    THEN
-  dir_right case? IF R@ e.pcol# C@ 1+ R@ e.vrow# C@    THEN
-  dir_up    case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1- THEN
-  dir_down  case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1+ THEN
-  \ pcol-new\vrow-new
+  dir_left    case? IF R@ e.pcol# C@ 1- R@ e.vrow# C@    THEN
+  dir_right   case? IF R@ e.pcol# C@ 1+ R@ e.vrow# C@    THEN
+  dir_up      case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1- THEN
+  dir_down    case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1+ THEN
 
-  [CHAR] B R@ ghost.debug-print
+  \ The following applies only to pacman (not enforced).
+  dir_blocked case? IF R@ e.pcol# C@    R@ e.vrow# C@    THEN
+  R> DROP ;
 
+\ Utility routine--not a method.
+\ Do not preserve erasables.
+\ Manage gobbling aspect. This requires an update to 'grid'.
+\ Update the score accordingly.
+: pacman.moving-policy ( pcol-new vrow-new self --
+    pcol-new vrow-new )
+  >R
+  OVER 1 AND 0=        \ pcol-new is even
+  OVER 1 AND 0= AND IF \ and so is vrow-new
+    2DUP get-grid-char DUP
+    scorable? IF       \ Cross or pellet
+      2 R@ e.gobbling C!  \ Gobble for two clock cycles
+
+      \ Update the score. 'issuper' flag also will need to be
+      \ updated if TOS is a pellet.
+      case! score DUP 2@
+      cross  case? IF 10. THEN
+      pellet case? IF 50. THEN
+      D+ ROT 2!
+      update-score
+
+      \ Cross or pellet consumed. Blank the grid character.
+      2DUP get-grid-char-addr BL SWAP C!
+
+    ELSE
+      DROP
+    THEN
+  THEN
+  R> DROP ;
+
+\ Utility routine--not a method.
+\ Preserve erasables.
+\ Eventually check whether we caught pacman and he must die.
+: ghost.moving-policy ( pcol-new vrow-new self --
+    pcol-new vrow-new )
+  >R
   \ Check whether we previously saved an interfering character.
   \ If so, re-display it at the saved coordinates.
   R@ .interfering
@@ -1401,45 +1518,87 @@ END-STRUCTURE
 
   \ Defer the "save-under" logic until pcol-new is even.
   \ pcol-new\vrow-new
-  OVER 1 AND 0= IF
-    [CHAR] D R@ ghost.debug-print
+  OVER 1 AND IF R> DROP EXIT THEN
 
-    \ Are we stepping on anyone's toes (interfering)?
-    \ Note: interference is checked at the new coordinates.
-    2DUP get-grid-char
+  [CHAR] D R@ ghost.debug-print
 
-    \ A non-BL erasable character is said to be interfering.
-    DUP DUP BL <> SWAP erasable-or-door? AND IF
-      \ Did we already know about it?
-      R@ e.igchr C@ IF \ Yes
+  \ Are we stepping on anyone's toes (interfering)?
+  \ Note: interference is checked at the new coordinates.
+  2DUP get-grid-char
 
-        \ Check for a new interference.
-        \ The comparison with the previously interfering
-        \ character is a fallacy. We should check interfering
-        \ coordinates (those we decide to select).
-        DUP R@ e.igchr C@ <> IF \ Interfering differently
-          R@ .interfering
-          R@ e.igchr C!
-          \ Update interference details.
-          \ Following heuristic may only work when going up!!!
-          2DUP  -2 AND R@ e.ivrow# C! \ Force even row#
-            R@ e.ipcol# C!
-        ELSE           \ Same old
-          DROP         \ Drop interfering character
-        THEN
+  \ A non-BL erasable character is said to be interfering.
+  DUP DUP BL <> SWAP erasable-or-door? AND IF
+    \ Did we already know about it?
+    R@ e.igchr C@ IF \ Yes
 
-      ELSE             \ No, register interference details
+      \ Check for a new interference.
+      DUP R@ e.igchr C@ <> IF \ Interfering differently
+        R@ .interfering
         R@ e.igchr C!
-        \ Following heuristic may only work when going up!!!
+        \ Update interference details.
         2DUP  -2 AND R@ e.ivrow# C! \ Force even row#
           R@ e.ipcol# C!
-        [CHAR] E R@ ghost.debug-print
+      ELSE           \ Same old
+        DROP         \ Drop interfering character
       THEN
-    ELSE
-      DROP             \ Drop interfering character
-      R@ .interfering
-      0 R@ e.igchr C!  \ Clear interference record
+
+    ELSE             \ No, register interference details
+      R@ e.igchr C!
+      2DUP  -2 AND R@ e.ivrow# C! \ Force even row#
+        R@ e.ipcol# C!
+      [CHAR] E R@ ghost.debug-print
     THEN
+  ELSE
+    DROP             \ Drop interfering character
+    R@ .interfering
+    0 R@ e.igchr C!  \ Clear interference record
+  THEN
+  R> DROP ;
+
+\ Entity method.
+: entity.move ( self -- )
+  >R
+
+  R@ e.inited C@ 0= IF \ If this is the first display request.
+    R@ entity.initial-display
+    TRUE R> e.inited C! EXIT
+  THEN
+
+  \ The current direction should be in [dir_up..dir_blocked]
+  \ Bail out now if that's not the case.
+  \ dir_blocked should only be in effect for pacman, which
+  \ is an indication that some keyboard input is required.
+  R@ e.cdir C@ dir_up dir_blocked 1+ WITHIN 0= IF
+    S" entity.move: illegal current direction" crash-and-burn
+  THEN
+  \ From here on, cdir has been validated.
+
+  R@ DUP DUP e.inum C@ IF
+    ghost.dirselect
+  ELSE
+    pacman.dirselect
+  THEN
+  SWAP e.cdir C!
+
+  \ The current entity has been displayed at least once and
+  \ cdir is viable. We are now in a position such that we can
+  \ actually alter the entity's coordinates.
+
+  -1 -1 [CHAR] A R@ ghost.debug-print 2DROP
+
+  \ Blank current position on screen.
+  \ Questionable if we are pacman and we're blocked.
+  R@ e.pcol# C@ x0 + R@ e.vrow# C@ >grid-space AT-XY 2 SPACES
+
+  \ Update entity coordinates on the data stack.
+  R@ entity.get-new-coordinates \ pcol-new\vrow-new
+
+  [CHAR] B R@ ghost.debug-print
+
+  R@ DUP e.inum C@ IF \ pcol-new\vrow-new\self
+    ghost.moving-policy
+  ELSE
+    pacman.moving-policy
   THEN
 
   [CHAR] F R@ ghost.debug-print
@@ -1467,15 +1626,18 @@ END-STRUCTURE
     0                  R@ e.ivrow#   C!
     0                  R@ e.ipcol#   C!
     0                  R@ e.igchr    C!
+    dir_blocked        R@ e.pdir     C!
+    dir_unspec         R@ e.idir     C!
     FALSE              R@ e.inited   C!
-    FALSE              R@ e.superf   C!
-    TRUE               R@ e.alivef   C!
+    FALSE              R@ e.issuper  C!
+    TRUE               R@ e.isalive  C!
+    0                  R@ e.gobbling C!
     serialno @ DUP     R@ e.inum     C!
       1+ serialno !
     \ Initialize fields from arguments.
-    R@ e.cdir  C!  \ vrow\pcol
-    R@ e.pcol# C!  \ vrow
-    R@ e.vrow# C!  \ --
+    R@ e.cdir  C!                   \ vrow\pcol
+    DUP R@ e.pcol0 C! R@ e.pcol# C! \ vrow
+    DUP R@ e.vrow0 C! R@ e.vrow# C! \ --
     R> ;           \ Return 'address'
 
 4 CONSTANT #ghosts
@@ -1511,7 +1673,7 @@ DROP                    \ Last defined entity
 
 : _main ( -- )
   BEGIN
-\   entvec @ DUP e.strategy :: \ Pacman's move
+    entvec @ DUP e.strategy :: \ Pacman's move
     entvec 1 CELLS + #ghosts 0 ?DO
       DUP @ DUP e.strategy :: \ Move the current ghost
       CELL+
