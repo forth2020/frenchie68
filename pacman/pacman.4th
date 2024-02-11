@@ -68,9 +68,14 @@ IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
 2VARIABLE gamlev  \ And so is this
 2VARIABLE bonus   \ Semantics need clarification
 2VARIABLE suptim  \ Semantics need clarification
+0 VALUE pacman-addr \ An alias for entvec[0]
 VARIABLE y0       \ Used by 'display-line' for inits purposes
 VARIABLE serialno \ Instance number generator.
-500 VALUE clkperiod \ Expressed in milliseconds
+
+300 VALUE clkperiod \ Expressed in milliseconds
+
+\ A clock cycle count during which pacman stays "supercharged."
+100 1+ CONSTANT super-clkcycles
 
 \ -------------------------------------------------------------
 \ Grid specification.
@@ -575,7 +580,7 @@ CREATE softfont
 %110000 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
 %110000 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
 
-\ Character "East", right half at $42 (C).
+\ Character "East", right half at $42 (B).
 \ Columns #8 and #9 are unsused.
 \ Group A  Group B    Group C (top to bottom)
 %110000 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
@@ -777,7 +782,7 @@ CREATE softfont
 %000000 C, %000000 C, %0000 C, \ Column #8 unused
 %000000 C, %000000 C, %0000 C, \ Column #9 unused
 
-\ Character "Pinky", left half at $51 (O)
+\ Character "Pinky", left half at $51 (Q)
 \ Left: colunm #0 and #1 unused.
 \ Group A  Group B    Group C (top to bottom)
 %000000 C, %000000 C, %0000 C, \ Column #0 unused
@@ -791,7 +796,7 @@ CREATE softfont
 %111111 C, %111111 C, %0011 C, \ Column #8
 %111111 C, %111111 C, %0011 C, \ Column #9
 
-\ Character "Pinky", right half at $52 (P).
+\ Character "Pinky", right half at $52 (R).
 \ Right: columns #8 and #9 unused.
 \ Group A  Group B    Group C (top to bottom)
 %111111 C, %111111 C, %0011 C, \ Column #0
@@ -805,7 +810,7 @@ CREATE softfont
 %000000 C, %000000 C, %0000 C, \ Column #8 unused
 %000000 C, %000000 C, %0000 C, \ Column #9 unused
 
-\ Character "Clyde", left half at $53 (Q)
+\ Character "Clyde", left half at $53 (S)
 \ Left: colunm #0 and #1 unused.
 \ Group A  Group B    Group C (top to bottom)
 %000000 C, %000000 C, %0000 C, \ Column #0 unused
@@ -819,7 +824,7 @@ CREATE softfont
 %111111 C, %111111 C, %0011 C, \ Column #8
 %111111 C, %111111 C, %0011 C, \ Column #9
    
-\ Character "Clyde", right half at $54 (R).
+\ Character "Clyde", right half at $54 (T).
 \ Right: columns #8 and #9 unused.
 \ Group A  Group B    Group C (top to bottom)
 %111111 C, %111111 C, %0011 C, \ Column #0
@@ -832,6 +837,118 @@ CREATE softfont
 %110000 C, %111111 C, %1111 C, \ Column #7
 %000000 C, %000000 C, %0000 C, \ Column #8 unused
 %000000 C, %000000 C, %0000 C, \ Column #9 unused
+
+\ Character "rBlinky", left half at $55 (U)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %111111 C, %1111 C, \ Column #0 unused
+%111111 C, %111111 C, %1111 C, \ Column #1 unused
+%001111 C, %000000 C, %0000 C, \ Column #2
+%001111 C, %000000 C, %0000 C, \ Column #3
+%000011 C, %000000 C, %1100 C, \ Column #4
+%000011 C, %000000 C, %1100 C, \ Column #5
+%000011 C, %000011 C, %0000 C, \ Column #6
+%000011 C, %000011 C, %0000 C, \ Column #7
+%000000 C, %000000 C, %1100 C, \ Column #8
+%000000 C, %000000 C, %1100 C, \ Column #9
+
+\ Character "rBlinky", right half at $56 (V).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %000000 C, %1100 C, \ Column #0
+%000000 C, %000000 C, %1100 C, \ Column #1
+%000011 C, %000011 C, %0000 C, \ Column #2
+%000011 C, %000011 C, %0000 C, \ Column #3
+%000011 C, %000000 C, %1100 C, \ Column #4
+%000011 C, %000000 C, %1100 C, \ Column #5
+%001111 C, %000000 C, %0000 C, \ Column #6
+%001111 C, %000000 C, %0000 C, \ Column #7
+%111111 C, %111111 C, %1111 C, \ Column #8 unused
+%111111 C, %111111 C, %1111 C, \ Column #9 unused
+
+\ Character "rInky", left half at $57 (W)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %111111 C, %1111 C, \ Column #0 unused
+%111111 C, %111111 C, %1111 C, \ Column #1 unused
+%001111 C, %000000 C, %0000 C, \ Column #2
+%001111 C, %000000 C, %0000 C, \ Column #3
+%000011 C, %000000 C, %1100 C, \ Column #4
+%000011 C, %000000 C, %1100 C, \ Column #5
+%000011 C, %000011 C, %0000 C, \ Column #6
+%000011 C, %000011 C, %0000 C, \ Column #7
+%000000 C, %000000 C, %1100 C, \ Column #8
+%000000 C, %110000 C, %1100 C, \ Column #9
+
+\ Character "rInky", right half at $58 (X).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %110000 C, %1100 C, \ Column #0
+%000000 C, %000000 C, %1100 C, \ Column #1
+%000011 C, %000011 C, %0000 C, \ Column #2
+%000011 C, %000011 C, %0000 C, \ Column #3
+%000011 C, %000000 C, %1100 C, \ Column #4
+%000011 C, %000000 C, %1100 C, \ Column #5
+%001111 C, %000000 C, %0000 C, \ Column #6
+%001111 C, %000000 C, %0000 C, \ Column #7
+%111111 C, %111111 C, %1111 C, \ Column #8 unused
+%111111 C, %111111 C, %1111 C, \ Column #9 unused
+
+\ Character "rPinky", left half at $59 (Y)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %111111 C, %1111 C, \ Column #0 unused
+%111111 C, %111111 C, %1111 C, \ Column #1 unused
+%001111 C, %000000 C, %0000 C, \ Column #2
+%001111 C, %000000 C, %0001 C, \ Column #3
+%000011 C, %100000 C, %1100 C, \ Column #4
+%000011 C, %010000 C, %1100 C, \ Column #5
+%000011 C, %001011 C, %0000 C, \ Column #6
+%000011 C, %000011 C, %0000 C, \ Column #7
+%000000 C, %000000 C, %1100 C, \ Column #8
+%000000 C, %000000 C, %1100 C, \ Column #9
+
+\ Character "rPinky", right half at $5A (Z).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %000000 C, %1100 C, \ Column #0
+%000000 C, %000000 C, %1100 C, \ Column #1
+%000011 C, %000011 C, %0000 C, \ Column #2
+%000011 C, %001011 C, %0000 C, \ Column #3
+%000011 C, %010000 C, %1100 C, \ Column #4
+%000011 C, %100000 C, %1100 C, \ Column #5
+%001111 C, %000000 C, %0001 C, \ Column #6
+%001111 C, %000000 C, %0000 C, \ Column #7
+%111111 C, %111111 C, %1111 C, \ Column #8 unused
+%111111 C, %111111 C, %1111 C, \ Column #9 unused
+
+\ Character "rClyde", left half at $5B ([)
+\ Left: colunm #0 and #1 unused.
+\ Group A  Group B    Group C (top to bottom)
+%111111 C, %111111 C, %1111 C, \ Column #0 unused
+%111111 C, %111111 C, %1111 C, \ Column #1 unused
+%001111 C, %000000 C, %0000 C, \ Column #2
+%001111 C, %001000 C, %0000 C, \ Column #3
+%000011 C, %010000 C, %1100 C, \ Column #4
+%000011 C, %100000 C, %1100 C, \ Column #5
+%000011 C, %000011 C, %0001 C, \ Column #6
+%000011 C, %000011 C, %0000 C, \ Column #7
+%000000 C, %000000 C, %1100 C, \ Column #8
+%000000 C, %000000 C, %1100 C, \ Column #9
+
+\ Character "rClyde", right half at $5C (\).
+\ Right: columns #8 and #9 unused.
+\ Group A  Group B    Group C (top to bottom)
+%000000 C, %000000 C, %1100 C, \ Column #0
+%000000 C, %000000 C, %1100 C, \ Column #1
+%000011 C, %000011 C, %0000 C, \ Column #2
+%000011 C, %000011 C, %0001 C, \ Column #3
+%000011 C, %100000 C, %1100 C, \ Column #4
+%000011 C, %010000 C, %1100 C, \ Column #5
+%001111 C, %001000 C, %0000 C, \ Column #6
+%001111 C, %000000 C, %0000 C, \ Column #7
+%111111 C, %111111 C, %1111 C, \ Column #8 unused
+%111111 C, %111111 C, %1111 C, \ Column #9 unused
 
 \ The following is twice the number of sprites (dw characters).
 HERE softfont - chrdefbcnt / CONSTANT nchars
@@ -869,32 +986,36 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ $21 is the first user defined character in the software font.
 : .dwchar ( offs -- ) $21 + DUP EMIT 1+ EMIT ;
 
-: .blinky ( -- ) 0  .dwchar ;  \ Blinky (instanciated)
-: .cross  ( -- ) 2  .dwchar ;  \ Erasable/pacman
-: .pmrgt  ( -- ) 4  .dwchar ;  \ Pacman -> right (instanciated)
-: .pmgo   ( -- ) 6  .dwchar ;  \ Pacman gobbling
-: .llc    ( -- ) 8  .dwchar ;
-: .lrc    ( -- ) 10 .dwchar ;
-: .hbar   ( -- ) 12 .dwchar ;
-: .vbar   ( -- ) 14 .dwchar ;
-: .ulc    ( -- ) 16 .dwchar ;
-: .urc    ( -- ) 18 .dwchar ;
-: .ppl    ( -- ) 20 .dwchar ;  \ Erasable/pacman
-: .tdn    ( -- ) 22 .dwchar ;
-: .tup    ( -- ) 24 .dwchar ;
-: .trg    ( -- ) 26 .dwchar ;
-: .tlf    ( -- ) 28 .dwchar ;
-: .west   ( -- ) 30 .dwchar ;
-: .east   ( -- ) 32 .dwchar ;
-: .south  ( -- ) 34 .dwchar ;
-: .north  ( -- ) 36 .dwchar ;
-: .door   ( -- ) 38 .dwchar ;  \ Erasable/ghosts inside the pen
-: .pmlft  ( -- ) 40 .dwchar ;  \ Pacman -> left
-: .pmupw  ( -- ) 42 .dwchar ;  \ Pacman -> up
-: .pmdnw  ( -- ) 44 .dwchar ;  \ Pacman -> down
-: .inky   ( -- ) 46 .dwchar ;  \ Inky (instanciated)
-: .pinky  ( -- ) 48 .dwchar ;  \ Pinky (instanciated)
-: .clyde  ( -- ) 50 .dwchar ;  \ Clyde (instanciated)
+: .blinky  ( -- ) 0  .dwchar ; \ Blinky (instanciated)
+: .cross   ( -- ) 2  .dwchar ; \ Erasable/pacman
+: .pmrgt   ( -- ) 4  .dwchar ; \ Pacman -> right (instanciated)
+: .pmgo    ( -- ) 6  .dwchar ; \ Pacman gobbling
+: .llc     ( -- ) 8  .dwchar ;
+: .lrc     ( -- ) 10 .dwchar ;
+: .hbar    ( -- ) 12 .dwchar ;
+: .vbar    ( -- ) 14 .dwchar ;
+: .ulc     ( -- ) 16 .dwchar ;
+: .urc     ( -- ) 18 .dwchar ;
+: .ppl     ( -- ) 20 .dwchar ; \ Erasable/pacman
+: .tdn     ( -- ) 22 .dwchar ;
+: .tup     ( -- ) 24 .dwchar ;
+: .trg     ( -- ) 26 .dwchar ;
+: .tlf     ( -- ) 28 .dwchar ;
+: .west    ( -- ) 30 .dwchar ;
+: .east    ( -- ) 32 .dwchar ;
+: .south   ( -- ) 34 .dwchar ;
+: .north   ( -- ) 36 .dwchar ;
+: .door    ( -- ) 38 .dwchar ; \ Erasable/ghosts in the pen
+: .pmlft   ( -- ) 40 .dwchar ; \ Pacman -> left
+: .pmupw   ( -- ) 42 .dwchar ; \ Pacman -> up
+: .pmdnw   ( -- ) 44 .dwchar ; \ Pacman -> down
+: .inky    ( -- ) 46 .dwchar ; \ Inky (instanciated)
+: .pinky   ( -- ) 48 .dwchar ; \ Pinky (instanciated)
+: .clyde   ( -- ) 50 .dwchar ; \ Clyde (instanciated)
+: .rblinky ( -- ) 52 .dwchar ; \ Blinky, reverse video
+: .rinky   ( -- ) 54 .dwchar ; \ Inky, reverse video
+: .rpinky  ( -- ) 56 .dwchar ; \ Pinky, reverse video
+: .rclyde  ( -- ) 58 .dwchar ; \ Clyde, reverse video
 
 \ Select custom character set.
 : custom-charset-select ( -- )
@@ -902,6 +1023,14 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 
 : default-charset-select ( -- )
   $0F EMIT ;            \ GL <- G0 (LS0 locking shift)
+
+\ Used by pacman when entering/leaving the "issuper" state.
+IFGF warnings off
+: bell ( -- )
+  default-charset-select
+  7 EMIT
+  custom-charset-select ;
+IFGF warnings on
 
 : initvars ( -- )
   0 serialno !          \ Entity serial number counter
@@ -985,12 +1114,17 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ CHAR W Pacman going downward
 \ CHAR X Ghost (Inky)
 \ CHAR Y Ghost (Pinky)
-\ CHAR Z Ghost (Clyde) -- see also .grid-char
+\ CHAR Z Ghost (Clyde)
+\ CHAR [ Ghost (Blinky) in reverse video
+\ CHAR \ Ghost (Inky) in reverse video
+\ CHAR ] Ghost (Pinky) in reverse video
+\ CHAR ^ Ghost (Clyde) in reverse video -- see also .grid-char
 
 80 #col 2 * - CONSTANT x0
 
 \ Drain the data stack
 : drain ( ... -- )
+\ ." Data stack depth was " DEPTH .
   BEGIN DEPTH WHILE DROP REPEAT ;
 
 : crash-and-burn ( exitmsg-addr exitmsg-bcnt )
@@ -1003,7 +1137,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ cursor position.
 : .grid-char ( grid-char -- )
   DUP BL = IF DROP 2 SPACES EXIT THEN
-  DUP [CHAR] A [CHAR] Z 1+ WITHIN 0= IF
+  DUP [CHAR] A [CHAR] ^ 1+ WITHIN 0= IF
     S" .grid-char: illegal character" crash-and-burn
   THEN
 
@@ -1033,7 +1167,11 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   [CHAR] W case? IF .pmdnw   EXIT THEN
   [CHAR] X case? IF .inky    EXIT THEN
   [CHAR] Y case? IF .pinky   EXIT THEN
-  .clyde ;
+  [CHAR] Z case? IF .clyde   EXIT THEN
+  [CHAR] [ case? IF .rblinky EXIT THEN \ Blinky, reverse video
+  [CHAR] \ case? IF .rinky   EXIT THEN \ Inky, reverse video
+  [CHAR] ] case? IF .rpinky  EXIT THEN \ Pinky, reverse video
+  .rclyde ;                            \ Clyde, reverse video
 
 \ ANS94 3.2.3.3 Return stack:
 \ A program shall not access from within a DO-LOOP values
@@ -1125,7 +1263,7 @@ BEGIN-STRUCTURE entity
   CFIELD: e.pdir     \ Previous direction (pacman)
   CFIELD: e.idir     \ Intended direction (pacman)
   CFIELD: e.inited   \ TRUE if first display has been performed
-  CFIELD: e.issuper  \ NZ if Pacman and supercharged
+  CFIELD: e.issuper  \ # Clock ticks in "super" state (pacman)
   CFIELD: e.isalive  \ NZ if ghost and not neutralized
   CFIELD: e.gobbling \ # Clock ticks till we're fed (pacman)
   CFIELD: e.inum     \ Instance serial number
@@ -1167,15 +1305,26 @@ END-STRUCTURE
   dir_up    case? IF .pmupw EXIT THEN
   dir_down  case? IF .pmdnw EXIT THEN ;
 
-\ Display entity. Ghosts are handled as not frightened
-\ for the time being.
+\ Display entity.
 : entity.display ( self -- )
   DUP e.inum C@ case!
-  0 case? IF      .pacman EXIT THEN
-  1 case? IF DROP .blinky EXIT THEN
-  2 case? IF DROP .inky   EXIT THEN
-  3 case? IF DROP .pinky  EXIT THEN
-  4 case? IF DROP .clyde  EXIT THEN
+  0 case? IF
+    .pacman ( self is consumed ) EXIT
+  ELSE
+    DROP           \ No further introspection is required
+  THEN
+
+  pacman-addr e.issuper C@ 0= IF \ Ghosts are not frightened
+    1 case? IF .blinky  EXIT THEN
+    2 case? IF .inky    EXIT THEN
+    3 case? IF .pinky   EXIT THEN
+    4 case? IF .clyde   EXIT THEN
+  ELSE                           \ They are. Use reverse video
+    1 case? IF .rblinky EXIT THEN
+    2 case? IF .rinky   EXIT THEN
+    3 case? IF .rpinky  EXIT THEN
+    4 case? IF .rclyde  EXIT THEN
+  THEN
 
   S" entity.display: unknown instance number" crash-and-burn ;
 
@@ -1199,11 +1348,8 @@ END-STRUCTURE
   DUP cross = SWAP pellet = OR ;
 
 : erasable? ( uchar -- flag )
-  case!
-  BL       case? IF TRUE EXIT THEN \ Blank spot
-  [CHAR] K case? IF TRUE EXIT THEN \ Crosses
-  [CHAR] L case? IF TRUE EXIT THEN \ Power pellets
-  FALSE ;
+  DUP BL = IF DROP TRUE EXIT THEN
+  scorable? ;
 
 : erasable-or-door? ( uchar -- flag )
   DUP door = IF DROP TRUE EXIT THEN
@@ -1487,11 +1633,12 @@ END-STRUCTURE
     scorable? IF       \ Cross or pellet
       2 R@ e.gobbling C!  \ Gobble for two clock cycles
 
-      \ Update the score. 'issuper' flag also will need to be
-      \ updated if TOS is a pellet.
       case! score DUP 2@
       cross  case? IF 10. THEN
-      pellet case? IF 50. THEN
+      pellet case? IF  \ Enter "supercharged" mode
+        super-clkcycles R@ e.issuper C! \ A clock cycle count
+        bell 50.
+      THEN
       D+ ROT 2!
       update-score
 
@@ -1502,6 +1649,13 @@ END-STRUCTURE
       DROP
     THEN
   THEN
+
+  \ Decrement the e.issuper attribute if non zero.
+  R@ e.issuper C@ ?DUP IF
+    1- R@ e.issuper C!
+    R@ e.issuper C@ 0= IF bell THEN \ Leave "supercharged" mode
+  THEN
+
   R> DROP ;
 
 \ Utility routine--not a method.
@@ -1587,7 +1741,6 @@ END-STRUCTURE
   -1 -1 [CHAR] A R@ ghost.debug-print 2DROP
 
   \ Blank current position on screen.
-  \ Questionable if we are pacman and we're blocked.
   R@ e.pcol# C@ x0 + R@ e.vrow# C@ >grid-space AT-XY 2 SPACES
 
   \ Update entity coordinates on the data stack.
@@ -1645,26 +1798,25 @@ END-STRUCTURE
 CREATE entvec #entities CELLS ALLOT
 
 entvec
-  \ We want Pacman to be the first entry in the entity vector
-  \ so that he gets first class treatment scheduling wise.
+  \ By convention, we have pacman as instance #0.
   entity.new pacman
   34 32 dir_right pacman
   OVER ! CELL+
 
-  entity.new ghost0
-  14 32 dir_left ghost0 \ N central ghost (Blinky)
+  entity.new blinky
+  14 32 dir_left blinky \ North central ghost
   OVER ! CELL+
 
-  entity.new ghost1
-  20 30 dir_down ghost1 \ West ghost (Inky)
+  entity.new inky
+  20 30 dir_down inky   \ Western ghost
   OVER ! CELL+
 
-  entity.new ghost2
-  20 32 dir_up ghost2   \ Central ghost (Pinky)
+  entity.new pinky
+  20 32 dir_up pinky    \ Central ghost
   OVER ! CELL+
 
-  entity.new ghost3
-  20 34 dir_left ghost3 \ East ghost (Clyde)
+  entity.new clyde
+  20 34 dir_left clyde  \ Eastern ghost
   OVER ! CELL+
 DROP                    \ Last defined entity
 
@@ -1683,6 +1835,7 @@ DROP                    \ Last defined entity
 
 : main ( -- )
   initialize
+  entvec @ IS pacman-addr
   PAGE .init-sitrep \ Initial scoreboard
   .initial-grid
 
@@ -1691,7 +1844,7 @@ DROP                    \ Last defined entity
   IFGF ?DUP IF 0 23 AT-XY ." Caught exception " . QUIT THEN
 ;
 
-  main
+main
 
 \ wasteit
 
