@@ -12,6 +12,13 @@
 \
 \ You might elect to mess up with systemd's configuration.
 \ I do not.
+\
+\ Game reference material:
+\ - the "pacman dossier:"
+\   https://pacman.holenet.info/
+\ - "GameInternals:"
+\   https://gameinternals.com/
+\     understanding-pac-man-ghost-behavior
 
 DECIMAL
 MARKER wasteit
@@ -50,7 +57,7 @@ VARIABLE _case
 \ Using John Metcalf's Xorshift LFSRs PRNG.
 \ http://www.retroprogramming.com/2017/07/
 \   xorshift-pseudorandom-numbers-in-z80.html
-VARIABLE seed  23741 seed !
+VARIABLE seed  23741 seed ! \ Default in the absence of an RTC
 
 : random ( -- N )
   seed @ DUP 7 LSHIFT XOR
@@ -1124,7 +1131,7 @@ IFGF warnings on
 
 \ Drain the data stack
 : drain ( ... -- )
-\ ." Data stack depth was " DEPTH .
+  CR ." Data stack depth was " DEPTH .
   BEGIN DEPTH WHILE DROP REPEAT ;
 
 : crash-and-burn ( exitmsg-addr exitmsg-bcnt )
@@ -1529,7 +1536,8 @@ END-STRUCTURE
   R> DUP e.cdir C@ SWAP e.pdir C!
   dir_blocked ;
 
-: ghost.dirselect ( self -- new-dir )
+\ See notes below about ghost.dirselect.
+: _ghost.dirselect ( self -- new-dir )
   \ No direction changes unless both vrow# and pcol# are even.
   DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
   DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
@@ -1588,6 +1596,32 @@ END-STRUCTURE
 
   S" ghost.dirselect: no viable direction found"
     crash-and-burn ;
+
+\ From the "pacman dossier:"
+\ "Ghosts are forced to reverse direction by the system anytime
+\ the mode changes from: chase-to-scatter, chase-to-frightened,
+\ scatter-to-chase, and scatter-to-frightened. Ghosts do not
+\ reverse direction when changing back from frightened to chase
+\ or scatter modes."
+\
+\ Deciphering the gospel:
+\ - previous direction needs to be maintained for ghosts.
+\ - 'reversing direction' may not be possible by the time
+\   pacman acquires a power pellet. All we might be able to
+\   do if/when that happens is to select opposite(cdir) or pdir
+\   as the intended direction (a hint).
+\
+\ The direction returned is guaranteed to be adopted by the
+\ caller. If is is different from 'cdir', latch it to 'pdir'
+
+: ghost.dirselect ( self -- new-dir )
+  >R
+  R@ e.cdir C@         \ S: cdir, R: self
+  R@ _ghost.dirselect  \ S: cdir\new-dir
+    2DUP <> IF         \ Direction changed, S: cdir\new-dir
+      DUP R@ e.pdir C! \ 'pdir' <- 'new-dir'. S: cdir\new-dir
+    THEN
+  NIP R> DROP ;
 
 \ Re-display an erasable that was at least partially
 \ obscured by a ghost passing by.
@@ -1843,6 +1877,7 @@ DROP                    \ Last defined entity
   IFGF ['] _main CATCH finalize
   IFGF ?DUP IF
   IFGF   0 23 AT-XY ." Caught exception " DUP . CR
+  IFGF   ." Depth was " DEPTH . CR
   IFGF   THROW      \ We still want a stack dump!
   IFGF THEN
 ;
