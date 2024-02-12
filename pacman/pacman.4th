@@ -1835,7 +1835,7 @@ DROP                    \ Last defined entity
 
 : main ( -- )
   initialize
-  entvec @ IS pacman-addr
+  entvec @ TO pacman-addr
   PAGE .init-sitrep \ Initial scoreboard
   .initial-grid
 
