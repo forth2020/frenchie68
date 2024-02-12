@@ -1841,7 +1841,10 @@ DROP                    \ Last defined entity
 
   IFZ7 _main finalize
   IFGF ['] _main CATCH finalize
-  IFGF ?DUP IF 0 23 AT-XY ." Caught exception " . QUIT THEN
+  IFGF ?DUP IF
+  IFGF   0 23 AT-XY ." Caught exception " DUP . CR
+  IFGF   THROW      \ We still want a stack dump!
+  IFGF THEN
 ;
 
 main
