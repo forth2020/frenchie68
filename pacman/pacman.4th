@@ -1447,7 +1447,7 @@ END-STRUCTURE
   4 0 DO
     dir_blocked dir_up DO
       I pacman-addr e.cdir C!
-      2DUP AT-XY pacman-addr .pacman \ access to self unneeded
+      2DUP AT-XY pacman-addr .pacman
       125 MS
     LOOP
   LOOP
