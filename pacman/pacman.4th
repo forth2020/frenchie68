@@ -1072,6 +1072,11 @@ IFGF warnings on
   0 4  AT-XY score   .var
   custom-charset-select ;
 
+: update-lives ( -- )
+  default-charset-select
+  0 7  AT-XY lives   .var
+  custom-charset-select ;
+
 \ This routine should only be called when the default character
 \ set is in effect. Otherwise things will look ugly.
 : .sitrep ( -- )
@@ -1266,6 +1271,7 @@ BEGIN-STRUCTURE entity
   CFIELD: e.igchr    \ Interfering grid character (ghosts)
   CFIELD: e.pcol0    \ Initial pcol number
   CFIELD: e.vrow0    \ Initial vrow number
+  CFIELD: e.dir0     \ Initial direction
   CFIELD: e.cdir     \ Current direction
   CFIELD: e.pdir     \ Previous direction (pacman)
   CFIELD: e.idir     \ Intended direction (pacman)
@@ -1310,7 +1316,10 @@ END-STRUCTURE
   dir_right case? IF .pmrgt EXIT THEN
   dir_left  case? IF .pmlft EXIT THEN
   dir_up    case? IF .pmupw EXIT THEN
-  dir_down  case? IF .pmdnw EXIT THEN ;
+  dir_down  case? IF .pmdnw EXIT THEN
+
+  S" .pacman: invalid current direction"
+    crash-and-burn ;
 
 \ Display entity.
 : entity.display ( self -- )
@@ -1423,6 +1432,30 @@ END-STRUCTURE
   THEN
   R> DROP ;
 
+\ Utility routine--not a method.
+: entity.reset-coords-and-dir ( self - )
+  >R
+  R@ e.dir0  C@ R@ e.cdir  C!
+  R@ e.vrow0 C@ R@ e.vrow# C!
+  R@ e.pcol0 C@ R@ e.pcol# C!
+  R> DROP ;
+
+: .pacman-dying-routine ( -- )
+  pacman-addr e.pcol# C@ x0 +
+  pacman-addr e.vrow# C@ >grid-space
+
+  4 0 DO
+    dir_blocked dir_up DO
+      I pacman-addr e.cdir C!
+      2DUP AT-XY pacman-addr .pacman \ access to self unneeded
+      125 MS
+    LOOP
+  LOOP
+  AT-XY 2 SPACES
+
+  \ XXX Should this be considered a generic aspect of dying?
+  pacman-addr entity.reset-coords-and-dir ;
+
 \ Debugging support.
 : debug-enter ( -- )
   debug 0= IF EXIT THEN
@@ -1489,8 +1522,15 @@ END-STRUCTURE
   [CHAR] C case?     IF dir_right     EXIT THEN
   [CHAR] D case?     IF dir_left      EXIT THEN
 
-  S" keyboard-input-query: no comprendo"
-    crash-and-burn ;
+  dir_unspec ;     \ No comprendo
+
+: pacman.stepped-on? ( ghost-inst -- flag )
+  \ Compare the grid coordinates.
+  DUP e.vrow# C@ >grid-space
+    SWAP e.pcol# C@ >grid-space
+  pacman-addr e.vrow# C@ >grid-space
+    pacman-addr e.pcol# C@ >grid-space
+  D= ;
 
 : pacman.dirselect ( self -- new-dir )
   \ Keyboard input overrides any previous intended direction.
@@ -1618,10 +1658,11 @@ END-STRUCTURE
   >R
   R@ e.cdir C@         \ S: cdir, R: self
   R@ _ghost.dirselect  \ S: cdir\new-dir
-    2DUP <> IF         \ Direction changed, S: cdir\new-dir
-      DUP R@ e.pdir C! \ 'pdir' <- 'new-dir'. S: cdir\new-dir
-    THEN
-  NIP R> DROP ;
+  2DUP <> IF         \ Direction changed, S: cdir\new-dir
+    DUP R@ e.pdir C! \ 'pdir' <- 'new-dir'. S: cdir\new-dir
+  THEN
+  NIP
+  R> DROP ;
 
 \ Re-display an erasable that was at least partially
 \ obscured by a ghost passing by.
@@ -1694,7 +1735,6 @@ END-STRUCTURE
 
 \ Utility routine--not a method.
 \ Preserve erasables.
-\ Eventually check whether we caught pacman and he must die.
 : ghost.moving-policy ( pcol-new vrow-new self --
     pcol-new vrow-new )
   >R
@@ -1744,6 +1784,14 @@ END-STRUCTURE
   R> DROP ;
 
 \ Entity method.
+\ XXX: we should return a flag of some sort indicating whether
+\ the move resulted in a lethal outcome. The difficulty is
+\ that either PM or a ghost could die in the process. So
+\ we'll have to distinguish between each possible outcome.
+\ 0: no casualty.
+\ 1: PM died. Offer the possiblity to start a new game.
+\ 2: ghost died--who cares?
+
 : entity.move ( self -- )
   >R
 
@@ -1752,14 +1800,16 @@ END-STRUCTURE
     TRUE R> e.inited C! EXIT
   THEN
 
-  \ The current direction should be in [dir_up..dir_blocked]
-  \ Bail out now if that's not the case.
-  \ dir_blocked should only be in effect for pacman, which
-  \ is an indication that some keyboard input is required.
+  \ 'cdir' validation.
   R@ e.cdir C@ dir_up dir_blocked 1+ WITHIN 0= IF
     S" entity.move: illegal current direction" crash-and-burn
   THEN
-  \ From here on, cdir has been validated.
+  \ dir_blocked should only be in effect for PM, which
+  \ is an indication that some keyboard input is required.
+  R@ e.cdir C@ dir_blocked =
+  R@ e.inum C@ 0<> AND IF
+    S" entity.move: ghost blocked!!!" crash-and-burn
+  THEN
 
   R@ DUP DUP e.inum C@ IF
     ghost.dirselect
@@ -1768,30 +1818,46 @@ END-STRUCTURE
   THEN
   SWAP e.cdir C!
 
-  \ The current entity has been displayed at least once and
-  \ cdir is viable. We are now in a position such that we can
-  \ actually alter the entity's coordinates.
-
   -1 -1 [CHAR] A R@ ghost.debug-print 2DROP
 
   \ Blank current position on screen.
   R@ e.pcol# C@ x0 + R@ e.vrow# C@ >grid-space AT-XY 2 SPACES
 
-  \ Update entity coordinates on the data stack.
-  R@ entity.get-new-coordinates \ pcol-new\vrow-new
+  \ Update entity's coordinates on the data stack.
+  R@ entity.get-new-coordinates \ S: pcol-new\vrow-new
 
   [CHAR] B R@ ghost.debug-print
 
-  R@ DUP e.inum C@ IF \ pcol-new\vrow-new\self
+  R@ DUP e.inum C@ IF    \ S: pcol-new\vrow-new\self
     ghost.moving-policy
   ELSE
     pacman.moving-policy
-  THEN
+  THEN                   \ S: pcol-new\vrow-new
 
   [CHAR] F R@ ghost.debug-print
 
   \ Update entity's coordinates fields.
   2DUP  R@ e.vrow# C!  R@ e.pcol# C!
+
+  \ If handling a ghost, check for PM's untimely demise.
+  \ XXX This completely ignores the fact that PM could be
+  \ supercharged!!!
+  \ In any case, either PM dies or the ghost dies.
+  R@ e.inum C@ IF        \ We're not PM
+    R@ pacman.stepped-on? IF
+      .pacman-dying-routine
+
+      lives 2@ -1. D+ lives 2! \ Decrement lives (as a double)
+      update-lives             \ and update the display
+
+      2000 MS \ Wait for 2 seconds.
+
+      lives 2@ 0. D= IF
+        2DROP                  \ Get rid of ghost's new coords
+        S" game over!" crash-and-burn
+      THEN
+    THEN
+  THEN
 
   \ Display entity at new coordinates.
   SWAP x0 + SWAP >grid-space AT-XY R@ DUP e.display ::
@@ -1822,7 +1888,7 @@ END-STRUCTURE
     serialno @ DUP     R@ e.inum     C!
       1+ serialno !
     \ Initialize fields from arguments.
-    R@ e.cdir  C!                   \ vrow\pcol
+    DUP R@ e.dir0  C! R@ e.cdir  C! \ vrow\pcol
     DUP R@ e.pcol0 C! R@ e.pcol# C! \ vrow
     DUP R@ e.vrow0 C! R@ e.vrow# C! \ --
     R> ;           \ Return 'address'
