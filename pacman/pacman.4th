@@ -1298,21 +1298,18 @@ END-STRUCTURE
 \ Display pacman--rendition depends on the current direction
 \ and gobbling status. Gobbling overrides the direction
 \ indication.
-: .pacman ( self -- )
-  DUP e.gobbling C@ ?DUP IF \ self\gobbling-cycle-count
+: .pacman ( -- )
+  pacman-addr e.gobbling C@ ?DUP IF \ S: gobbling-cycle-count
     .pmgo          \ Display pacman as gobbling
-    1- SWAP e.gobbling C!
+    1- pacman-addr e.gobbling C!
     EXIT
   THEN
 
-  DUP e.cdir C@ DUP dir_blocked = IF
-    DROP
-    e.pdir C@
-  ELSE
-    NIP
+  pacman-addr e.cdir C@ DUP dir_blocked = IF
+    DROP pacman-addr e.pdir C@ \ Select 'pdir' if blocked
   THEN
 
-  case!
+  ( S: selected-dir ) case!
   dir_right case? IF .pmrgt EXIT THEN
   dir_left  case? IF .pmlft EXIT THEN
   dir_up    case? IF .pmupw EXIT THEN
@@ -1323,11 +1320,10 @@ END-STRUCTURE
 
 \ Display entity.
 : entity.display ( self -- )
-  DUP e.inum C@ case!
-  0 case? IF
-    .pacman ( self is consumed ) EXIT
+  e.inum C@ ?DUP IF
+    case!
   ELSE
-    DROP           \ No further introspection is required
+    .pacman EXIT
   THEN
 
   pacman-addr e.issuper C@ 0= IF \ Ghosts are not frightened
@@ -1417,8 +1413,8 @@ END-STRUCTURE
     ELSE
       \ The grid character might not be considered as an
       \ erasable and still may be if:
-      \ 1: the grid character is 'T' (ghosts' pen door).
-      \ 2: we're a ghost (i.e. not pacman).
+      \ 1: the grid character is 'T' (ghosts' pen door) AND
+      \ 2: we're a ghost (i.e. not pacman) AND
       \ 3: the originating coordinates are inside the ghosts'
       \    pen.
       \ In essence, the ghosts' pen door _is_ an erasable but
@@ -1447,14 +1443,17 @@ END-STRUCTURE
   4 0 DO
     dir_blocked dir_up DO
       I pacman-addr e.cdir C!
-      2DUP AT-XY pacman-addr .pacman
+      2DUP AT-XY .pacman
       125 MS
     LOOP
   LOOP
   AT-XY 2 SPACES
 
   \ XXX Should this be considered a generic aspect of dying?
-  pacman-addr entity.reset-coords-and-dir ;
+  pacman-addr entity.reset-coords-and-dir
+
+  \ XXX Might need to go when 'issuper' is actually honored.
+  0 pacman-addr e.issuper C! ; \ Also reset 'issuper.'
 
 \ Debugging support.
 : debug-enter ( -- )
