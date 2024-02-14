@@ -1890,6 +1890,8 @@ END-STRUCTURE
         THEN
       THEN
     THEN
+  \ XXX We're missing collision detection if PM is currently
+  \ scheduled. Do something about it!
   THEN
 
   \ Display entity at new coordinates.
