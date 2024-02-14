@@ -79,7 +79,7 @@ IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
 VARIABLE y0       \ Used by 'display-line' for inits purposes
 VARIABLE serialno \ Instance number generator.
 
-300 VALUE clkperiod \ Expressed in milliseconds
+250 VALUE clkperiod \ Expressed in milliseconds
 
 \ A clock cycle count during which pacman stays "supercharged."
 100 1+ CONSTANT super-clkcycles
@@ -1039,6 +1039,12 @@ IFGF warnings off
   custom-charset-select ;
 IFGF warnings on
 
+\ Referenced when using the "pacman defense"--killing a ghost.
+: 2bell ( -- )
+  default-charset-select
+  7 EMIT 7 EMIT
+  custom-charset-select ;
+
 : initvars ( -- )
   0 serialno !          \ Entity serial number counter
   0. hiscore 2!         \ Make this somehow persistent!
@@ -1263,7 +1269,8 @@ IFGF warnings on
 BEGIN-STRUCTURE entity
   FIELD:  e.strategy \ Strategy (moving) method
   FIELD:  e.display  \ Display method
-  FIELD:  e.resurr   \ # Clock ticks till we're back (ghosts)
+  CFIELD: e.resurr   \ # Clock ticks till we're back (ghosts)
+  CFIELD: e.reward   \ # points for killing a ghost / 100 (PM)
   CFIELD: e.vrow#    \ Virtual row number
   CFIELD: e.pcol#    \ Physical column number
   CFIELD: e.ivrow#   \ Interfering virtual row number (ghosts)
@@ -1277,7 +1284,6 @@ BEGIN-STRUCTURE entity
   CFIELD: e.idir     \ Intended direction (pacman)
   CFIELD: e.inited   \ TRUE if first display has been performed
   CFIELD: e.issuper  \ # Clock ticks in "super" state (pacman)
-  CFIELD: e.isalive  \ NZ if ghost and not neutralized
   CFIELD: e.gobbling \ # Clock ticks till we're fed (pacman)
   CFIELD: e.inum     \ Instance serial number
 END-STRUCTURE
@@ -1449,11 +1455,11 @@ END-STRUCTURE
   LOOP
   AT-XY 2 SPACES
 
-  \ XXX Should this be considered a generic aspect of dying?
-  pacman-addr entity.reset-coords-and-dir
+  0 pacman-addr e.issuper C!   \ Reset 'issuper'
+  0 pacman-addr e.reward  C!   \ and the 'reward' field
 
-  \ XXX Might need to go when 'issuper' is actually honored.
-  0 pacman-addr e.issuper C! ; \ Also reset 'issuper.'
+  \ XXX Should this be considered a generic aspect of dying?
+  pacman-addr entity.reset-coords-and-dir ;
 
 \ Debugging support.
 : debug-enter ( -- )
@@ -1646,9 +1652,9 @@ END-STRUCTURE
 \ Deciphering the gospel:
 \ - previous direction needs to be maintained for ghosts.
 \ - 'reversing direction' may not be possible by the time
-\   pacman acquires a power pellet. All we might be able to
-\   do if/when that happens is to select opposite(cdir) or pdir
-\   as the intended direction (a hint).
+\   pacman acquires a power pellet--i.e. hgosts become
+\   frightened. All we might be able to do by then is to select
+\   opposite(cdir) or pdir as the intended direction (a hint).
 \
 \ The direction returned is guaranteed to be adopted by the
 \ caller. If is is different from 'cdir', latch it to 'pdir'
@@ -1684,6 +1690,14 @@ END-STRUCTURE
 \ Utility routine--not a method.
 : entity.get-new-coordinates ( self -- pcol-new\vrow-new )
   >R
+
+  \ Handling a resurrecting/grounded ghost
+  R@ e.resurr C@ ?DUP IF
+    1- R@ e.resurr C!
+    R@ e.pcol# C@ R@ e.vrow# C@ \ Return current coordinates
+    R> DROP EXIT
+  THEN
+
   R@ e.cdir C@ case!
   dir_left    case? IF R@ e.pcol# C@ 1- R@ e.vrow# C@    THEN
   dir_right   case? IF R@ e.pcol# C@ 1+ R@ e.vrow# C@    THEN
@@ -1708,7 +1722,7 @@ END-STRUCTURE
       2 R@ e.gobbling C!  \ Gobble for two clock cycles
 
       case! score DUP 2@
-      cross  case? IF 10. THEN
+      cross case? IF 10. THEN
       pellet case? IF  \ Enter "supercharged" mode
         super-clkcycles R@ e.issuper C! \ A clock cycle count
         bell 50.
@@ -1719,15 +1733,19 @@ END-STRUCTURE
       \ Cross or pellet consumed. Blank the grid character.
       2DUP get-grid-char-addr BL SWAP C!
 
+      \ XXX end of level detection code to be added here!
     ELSE
       DROP
     THEN
   THEN
 
-  \ Decrement the e.issuper attribute if non zero.
+  \ Decrement the 'issuper' field if non zero.
   R@ e.issuper C@ ?DUP IF
     1- R@ e.issuper C!
-    R@ e.issuper C@ 0= IF bell THEN \ Leave "supercharged" mode
+    R@ e.issuper C@ 0= IF \ Leave "supercharged" mode
+      0 R@ e.reward C!    \ Reset the ghost kill counter
+      bell
+    THEN
   THEN
 
   R> DROP ;
@@ -1783,14 +1801,6 @@ END-STRUCTURE
   R> DROP ;
 
 \ Entity method.
-\ XXX: we should return a flag of some sort indicating whether
-\ the move resulted in a lethal outcome. The difficulty is
-\ that either PM or a ghost could die in the process. So
-\ we'll have to distinguish between each possible outcome.
-\ 0: no casualty.
-\ 1: PM died. Offer the possiblity to start a new game.
-\ 2: ghost died--who cares?
-
 : entity.move ( self -- )
   >R
 
@@ -1839,21 +1849,45 @@ END-STRUCTURE
   2DUP  R@ e.vrow# C!  R@ e.pcol# C!
 
   \ If handling a ghost, check for PM's untimely demise.
-  \ XXX This completely ignores the fact that PM could be
-  \ supercharged!!!
-  \ In any case, either PM dies or the ghost dies.
   R@ e.inum C@ IF        \ We're not PM
     R@ pacman.stepped-on? IF
-      .pacman-dying-routine
+      pacman-addr e.issuper C@ IF
+        \ The ghost at R@ dies--unless it is resurrecting!!!
+        \ Note: only Blinky resurrects out of the pen.
+        R@ e.resurr C@ 0= IF
+          2DROP          \ Drop the ghost's updated coords
+          2bell          \ Beep twice
+          R@ .interfering
+          0 R@ e.igchr C!
 
-      lives 2@ -1. D+ lives 2! \ Decrement lives (as a double)
-      update-lives             \ and update the display
+          50 R@ e.resurr C! \ Ghost grounded for 50 clk cycles
 
-      2000 MS \ Wait for 2 seconds.
+          \ Update the score based on the 'reward' field.
+          pacman-addr e.reward C@ ?DUP IF
+            2*
+          ELSE
+            2            \ 200 is the payoff for the first kill
+          THEN
+          DUP pacman-addr e.reward C!
+          100 * S>D score 2@ D+ score 2! update-score
 
-      lives 2@ 0. D= IF
-        2DROP                  \ Get rid of ghost's new coords
-        S" game over!" crash-and-burn
+          R@ entity.reset-coords-and-dir
+
+          \ Ghost returned to the pen.
+          R@ e.pcol# C@ R@ e.vrow# C@
+        THEN
+      ELSE               \ PM dies
+        .pacman-dying-routine
+
+        lives 2@ -1. D+ lives 2! \ Decrement 'lives' (a double)
+        update-lives             \ and update the display
+
+        2000 MS \ Wait for 2 seconds.
+
+        lives 2@ 0. D= IF
+          2DROP          \ Drop the ghost's updated coords
+          S" entity.move: game over!" crash-and-burn
+        THEN
       THEN
     THEN
   THEN
@@ -1874,15 +1908,15 @@ END-STRUCTURE
     \ Initialize default valued fields.
     ['] entity.move    R@ e.strategy !
     ['] entity.display R@ e.display  !
-    0                  R@ e.resurr   !
+    0                  R@ e.resurr   C!
+    0                  R@ e.reward   C!
     0                  R@ e.ivrow#   C!
     0                  R@ e.ipcol#   C!
     0                  R@ e.igchr    C!
     dir_blocked        R@ e.pdir     C!
     dir_unspec         R@ e.idir     C!
     FALSE              R@ e.inited   C!
-    FALSE              R@ e.issuper  C!
-    TRUE               R@ e.isalive  C!
+    0                  R@ e.issuper  C!
     0                  R@ e.gobbling C!
     serialno @ DUP     R@ e.inum     C!
       1+ serialno !
@@ -1898,6 +1932,7 @@ CREATE entvec #entities CELLS ALLOT
 
 entvec
   \ By convention, we have pacman as instance #0.
+  \ This is a central assumption though!
   entity.new pacman
   34 32 dir_right pacman
   OVER ! CELL+
