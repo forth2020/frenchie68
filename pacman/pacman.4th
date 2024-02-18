@@ -69,6 +69,10 @@ VARIABLE seed  23741 seed ! \ Default in the absence of an RTC
 \ Games variables implemented as doubles so as to be able
 \ to support 16 bit cell targets.
 IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
+
+\ D= is ANS94 Double. That's beyond Core.
+IFZ7 : D= D- D0= ;
+
 2VARIABLE hiscore
 2VARIABLE score
 2VARIABLE lives   \ This is clearly overkill
@@ -83,6 +87,11 @@ VARIABLE serialno \ Instance number generator.
 
 \ A clock cycle count during which pacman stays "supercharged."
 100 1+ CONSTANT super-clkcycles
+
+\ The entity vector.
+4 CONSTANT #ghosts
+#ghosts 1+ CONSTANT #entities
+CREATE entvec #entities CELLS ALLOT
 
 \ -------------------------------------------------------------
 \ Grid specification.
@@ -1435,7 +1444,7 @@ END-STRUCTURE
   R> DROP ;
 
 \ Utility routine--not a method.
-: entity.reset-coords-and-dir ( self - )
+: entity.reset-coords-and-dir ( self -- )
   >R
   R@ e.dir0  C@ R@ e.cdir  C!
   R@ e.vrow0 C@ R@ e.vrow# C!
@@ -1472,6 +1481,7 @@ END-STRUCTURE
   debug 0= IF EXIT THEN
   custom-charset-select
   KEY DROP ;
+
 
 : ghost.debug-print ( pcol-new vrow-new debug-tag-char self --
     pcol-new vrow-new )
@@ -1709,9 +1719,8 @@ END-STRUCTURE
   R> DROP ;
 
 \ Utility routine--not a method.
-\ Do not preserve erasables.
-\ Manage gobbling aspect. This requires an update to 'grid'.
-\ Update the score accordingly.
+\ Do not preserve erasables. Manage gobbling aspect. This
+\ requires an update to 'grid'. Update the score accordingly.
 : pacman.moving-policy ( pcol-new vrow-new self --
     pcol-new vrow-new )
   >R
@@ -1800,6 +1809,65 @@ END-STRUCTURE
   THEN
   R> DROP ;
 
+\ Utility routine--not a method.
+: collision-handle ( pcol-new vrow-new onproc ghost-addr --
+    pcol-new vrow-new )
+  \ Make sure he entity at TOS is a ghost.
+  DUP e.inum C@ 1 #ghosts 1+ WITHIN 0= IF
+    S" collision-handle: not a ghost on TOS" crash-and-burn
+  THEN
+
+  SWAP >R            \ Backup 'onproc'
+  \ S: pcol-new\vrow-new\ghost-addr, R: onproc
+
+  pacman-addr e.issuper C@ IF
+    \ The ghost at TOS dies--unless it is resurrecting.
+    \ Note: only Blinky resurrects outside of the pen.
+    DUP e.resurr C@ 0= IF
+      2bell          \ Beep twice
+      DUP .interfering
+      0 OVER e.igchr C!
+
+      50 OVER e.resurr C! \ Ghost grounded for 50 clk cycles
+
+      \ Update the score based on the 'reward' field.
+      pacman-addr e.reward C@ ?DUP IF
+        2*
+      ELSE
+        2            \ 200 is the payoff for the first kill
+      THEN
+      DUP pacman-addr e.reward C!
+      100 * S>D score 2@ D+ score 2! update-score
+
+      DUP entity.reset-coords-and-dir
+      \ S: pcol-new\vrow-new\ghost-addr
+
+      \ Ghost returned to the pen.
+      R@ IF          \ If the ghost just killed was ONPROC
+        ROT DROP NIP \ Drop anticipated ghost coordinates
+        DUP e.pcol# C@ SWAP e.vrow# C@
+      ELSE
+        DROP         \ S: pcol-new\vrow-new
+      THEN
+    ELSE
+      DROP           \ S: pcol-new\vrow-new
+    THEN
+  ELSE               \ PM dies
+    DROP             \ S: pcol-new\vrow-new
+    .pacman-dying-routine
+
+    lives 2@ -1. D+ lives 2! \ Decrement 'lives' (a double)
+    update-lives             \ and update the display
+
+    2000 MS \ Wait for 2 seconds.
+
+    lives 2@ 0. D= IF
+      S" collision-handle: game over!" crash-and-burn
+    THEN
+  THEN
+
+  R> DROP ;
+
 \ Entity method.
 : entity.move ( self -- )
   >R
@@ -1841,58 +1909,39 @@ END-STRUCTURE
     ghost.moving-policy
   ELSE
     pacman.moving-policy
-  THEN                   \ S: pcol-new\vrow-new
+  THEN
+  \ S: pcol-new\vrow-new
 
   [CHAR] F R@ ghost.debug-print
 
   \ Update entity's coordinates fields.
   2DUP  R@ e.vrow# C!  R@ e.pcol# C!
 
-  \ If handling a ghost, check for PM's untimely demise.
-  R@ e.inum C@ IF        \ We're not PM
-    R@ pacman.stepped-on? IF
-      pacman-addr e.issuper C@ IF
-        \ The ghost at R@ dies--unless it is resurrecting!!!
-        \ Note: only Blinky resurrects out of the pen.
-        R@ e.resurr C@ 0= IF
-          2DROP          \ Drop the ghost's updated coords
-          2bell          \ Beep twice
-          R@ .interfering
-          0 R@ e.igchr C!
-
-          50 R@ e.resurr C! \ Ghost grounded for 50 clk cycles
-
-          \ Update the score based on the 'reward' field.
-          pacman-addr e.reward C@ ?DUP IF
-            2*
-          ELSE
-            2            \ 200 is the payoff for the first kill
-          THEN
-          DUP pacman-addr e.reward C!
-          100 * S>D score 2@ D+ score 2! update-score
-
-          R@ entity.reset-coords-and-dir
-
-          \ Ghost returned to the pen.
-          R@ e.pcol# C@ R@ e.vrow# C@
-        THEN
-      ELSE               \ PM dies
-        .pacman-dying-routine
-
-        lives 2@ -1. D+ lives 2! \ Decrement 'lives' (a double)
-        update-lives             \ and update the display
-
-        2000 MS \ Wait for 2 seconds.
-
-        lives 2@ 0. D= IF
-          2DROP          \ Drop the ghost's updated coords
-          S" entity.move: game over!" crash-and-burn
-        THEN
+  \ Collision handling.
+  R@ e.inum C@ IF        \ A ghost is ONPROC
+    R@ pacman.stepped-on?
+    R@
+  ELSE                   \ PM is ONPROC
+    \ We have to check all possible ghosts' coordinates.
+    FALSE entvec CELL+ #ghosts 0 DO
+      DUP @ pacman.stepped-on? IF
+        NIP TRUE SWAP LEAVE
+      ELSE
+        CELL+
       THEN
-    THEN
-  \ XXX We're missing collision detection if PM is currently
-  \ scheduled. Do something about it!
+    LOOP
+    OVER IF @ THEN
   THEN
+  SWAP \ S: pcol-new\vrow-new\ghost-addr\flag
+
+  IF ( pcol-new\vrow-new\ghost-addr )
+    \ Pass on whether the colliding ghost is ONPROC.
+    \ If it is, coordinates might be revisited, otherwise not.
+    DUP R@ = SWAP collision-handle
+  ELSE
+    DROP
+  THEN
+  \ S: pcol-new\vrow-new
 
   \ Display entity at new coordinates.
   SWAP x0 + SWAP >grid-space AT-XY R@ DUP e.display ::
@@ -1928,12 +1977,8 @@ END-STRUCTURE
     DUP R@ e.vrow0 C! R@ e.vrow# C! \ --
     R> ;           \ Return 'address'
 
-4 CONSTANT #ghosts
-#ghosts 1+ CONSTANT #entities
-CREATE entvec #entities CELLS ALLOT
-
 entvec
-  \ By convention, we have pacman as instance #0.
+  \ By convention, we have PM as instance #0.
   \ This is a central assumption though!
   entity.new pacman
   34 32 dir_right pacman
@@ -1962,7 +2007,7 @@ DROP                    \ Last defined entity
 : _main ( -- )
   BEGIN
     entvec @ DUP e.strategy :: \ Pacman's move
-    entvec 1 CELLS + #ghosts 0 ?DO
+    entvec CELL+ #ghosts 0 ?DO
       DUP @ DUP e.strategy :: \ Move the current ghost
       CELL+
     LOOP DROP
