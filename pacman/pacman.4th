@@ -83,6 +83,8 @@ IFZ7 : D= D- D0= ;
 VARIABLE y0       \ Used by 'display-line' for inits purposes
 VARIABLE serialno \ Instance number generator.
 
+VARIABLE remitems#
+
 250 VALUE clkperiod \ Expressed in milliseconds
 
 \ A clock cycle count during which pacman stays "supercharged."
@@ -100,6 +102,7 @@ CREATE entvec #entities CELLS ALLOT
 23 CONSTANT #row
 #col #row * CONSTANT gridsize
 CREATE grid gridsize ALLOT
+172 CONSTANT #items
 
 \ -------------------------------------------------------------
 \ Well known symbols.
@@ -1245,7 +1248,8 @@ IFGF warnings on
   S" FK KFK K KFK K K K K KFK K KFK KF" 19 display-line
   S" F OEHEEEP F OEEEEEEEP F OEEEHEP F" 20 display-line
   S" FL K K K KFK K K K K KFK K K K LF" 21 display-line
-  S" CEEEEEEEEEHEEEEEEEEEEEHEEEEEEEEED" 22 display-line ;
+  S" CEEEEEEEEEHEEEEEEEEEEEHEEEEEEEEED" 22 display-line
+  #items remitems# ! ;
 
 \ -------------------------------------------------------------
 \ Animation objects.
@@ -1662,7 +1666,7 @@ END-STRUCTURE
 \ Deciphering the gospel:
 \ - previous direction needs to be maintained for ghosts.
 \ - 'reversing direction' may not be possible by the time
-\   pacman acquires a power pellet--i.e. hgosts become
+\   pacman acquires a power pellet--i.e. ghosts become
 \   frightened. All we might be able to do by then is to select
 \   opposite(cdir) or pdir as the intended direction (a hint).
 \
@@ -1742,7 +1746,12 @@ END-STRUCTURE
       \ Cross or pellet consumed. Blank the grid character.
       2DUP get-grid-char-addr BL SWAP C!
 
-      \ XXX end of level detection code to be added here!
+      \ End of level detection.
+      remitems# DUP @ 1- SWAP !
+      remitems# @ 0= IF
+        S" pacman.moving-policy: next level required"
+          crash-and-burn
+      THEN
     ELSE
       DROP
     THEN
@@ -2018,7 +2027,7 @@ DROP                    \ Last defined entity
   initialize
   entvec @ TO pacman-addr
   PAGE .init-sitrep \ Initial scoreboard
-  .initial-grid
+  .initial-grid     \ This should be on a per level basis!
 
   IFZ7 _main finalize
   IFGF ['] _main CATCH finalize
