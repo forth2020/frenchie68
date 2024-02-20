@@ -83,7 +83,7 @@ IFZ7 : D= D- D0= ;
 VARIABLE y0       \ Used by 'display-line' for inits purposes
 VARIABLE serialno \ Instance number generator.
 
-VARIABLE remitems#
+VARIABLE remitems# 0 remitems# !
 
 250 VALUE clkperiod \ Expressed in milliseconds
 
@@ -1062,7 +1062,7 @@ IFGF warnings on
   0. hiscore 2!         \ Make this somehow persistent!
   0. score  2!
   3. lives  2!          \ This is clearly overkill
-  1. gamlev 2!          \ And so is this
+  0. gamlev 2!          \ And so is this
   0. bonus  2!          \ Semantics need clarification
   0. suptim 2! ;        \ Semantics need clarification
 
@@ -1093,6 +1093,12 @@ IFGF warnings on
 : update-lives ( -- )
   default-charset-select
   0 7  AT-XY lives   .var
+  custom-charset-select ;
+
+: update-level ( -- )
+  default-charset-select
+  gamlev 2@ 1. D+ gamlev 2!
+  0 10 AT-XY gamlev  .var
   custom-charset-select ;
 
 \ This routine should only be called when the default character
@@ -1746,11 +1752,8 @@ END-STRUCTURE
       \ Cross or pellet consumed. Blank the grid character.
       2DUP get-grid-char-addr BL SWAP C!
 
-      \ End of level detection.
-      remitems# DUP @ 1- SWAP !
-      remitems# @ 0= IF
-        S" pacman.moving-policy: next level required"
-          crash-and-burn
+      remitems# @ ?DUP IF
+        1- remitems# !
       THEN
     ELSE
       DROP
@@ -2010,24 +2013,46 @@ entvec
   OVER ! CELL+
 DROP                    \ Last defined entity
 
+\ Reset all entities coordinates and set 'inited' to FALSE.
+\ Also clear PM's 'issuper' attribute and the 'reward' field.
+: level-entry-inits ( -- )
+  pacman-addr entity.reset-coords-and-dir
+  FALSE pacman-addr e.inited C!
+  0 pacman-addr e.issuper C!
+  0 pacman-addr e.reward C!
+
+  entvec CELL+ #ghosts 0 ?DO
+    DUP @
+      DUP entity.reset-coords-and-dir
+      e.inited FALSE SWAP C!
+    CELL+
+  LOOP DROP ;
+
 \ -------------------------------------------------------------
 \ Entry point here.
 
 : _main ( -- )
   BEGIN
-    entvec @ DUP e.strategy :: \ Pacman's move
-    entvec CELL+ #ghosts 0 ?DO
-      DUP @ DUP e.strategy :: \ Move the current ghost
-      CELL+
-    LOOP DROP
-    clkperiod MS
+    \ Check if remitems# is 0 here. If so start new level.
+    remitems# @ 0= IF
+      .initial-grid
+      update-level
+      level-entry-inits
+      \ Shorten the clock period a little?
+    ELSE
+      entvec @ DUP e.strategy :: \ Pacman's move
+      entvec CELL+ #ghosts 0 ?DO
+        DUP @ DUP e.strategy :: \ Move the current ghost
+        CELL+
+      LOOP DROP
+      clkperiod MS
+    THEN
   AGAIN ;
 
 : main ( -- )
   initialize
   entvec @ TO pacman-addr
   PAGE .init-sitrep \ Initial scoreboard
-  .initial-grid     \ This should be on a per level basis!
 
   IFZ7 _main finalize
   IFGF ['] _main CATCH finalize
