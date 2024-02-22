@@ -85,10 +85,11 @@ VARIABLE serialno \ Instance number generator.
 
 VARIABLE remitems# 0 remitems# !
 
-250 VALUE clkperiod \ Expressed in milliseconds
-
 \ A clock cycle count during which pacman stays "supercharged."
 100 1+ CONSTANT super-clkcycles
+270 CONSTANT clk0
+
+clk0 VALUE clkperiod \ Expressed in milliseconds
 
 \ The entity vector.
 4 CONSTANT #ghosts
@@ -1101,6 +1102,12 @@ IFGF warnings on
   0 10 AT-XY gamlev  .var
   custom-charset-select ;
 
+: update-suptim ( -- )
+  default-charset-select
+  clkperiod 5 / S>D suptim 2@ D+ suptim 2!
+  0 16 AT-XY suptim  .var
+  custom-charset-select ;
+
 \ This routine should only be called when the default character
 \ set is in effect. Otherwise things will look ugly.
 : .sitrep ( -- )
@@ -1760,8 +1767,9 @@ END-STRUCTURE
     THEN
   THEN
 
-  \ Decrement the 'issuper' field if non zero.
   R@ e.issuper C@ ?DUP IF
+    update-suptim
+    \ Decrement the 'issuper' field if non zero.
     1- R@ e.issuper C!
     R@ e.issuper C@ 0= IF \ Leave "supercharged" mode
       0 R@ e.reward C!    \ Reset the ghost kill counter
@@ -2038,7 +2046,10 @@ DROP                    \ Last defined entity
       .initial-grid
       update-level
       level-entry-inits
-      \ Shorten the clock period a little?
+      \ Shorten the clock period a little.
+      clkperiod 20 > IF
+        clkperiod 15 - TO clkperiod \ Don't let it drop below 5
+      THEN
     ELSE
       entvec @ DUP e.strategy :: \ Pacman's move
       entvec CELL+ #ghosts 0 ?DO
@@ -2052,6 +2063,8 @@ DROP                    \ Last defined entity
 : main ( -- )
   initialize
   entvec @ TO pacman-addr
+  0 remitems# !     \ Force level entry initializations
+  clk0 TO clkperiod \ Reset the clock period between games!!!
   PAGE .init-sitrep \ Initial scoreboard
 
   IFZ7 _main finalize
