@@ -973,17 +973,21 @@ CREATE softfont
 \ The following is twice the number of sprites (dw characters).
 HERE softfont - chrdefbcnt / CONSTANT nchars
 
+\ The following includes contributed input from Leon Wagner.
 : softfont.emit ( -- )
-  nchars 0 DO           \ Iterate over character definitions
-    nsixels 0 DO        \ Iterate over sixel groups
-      pcmw 0 DO         \ Iterate over column definitions
-        I nsixels * J + K chrdefbcnt * + softfont + C@
-        [CHAR] ? + EMIT \ Emit sixel data
+  softfont
+    nchars 0 DO           \ Iterate over character definitions
+      nsixels 0 DO        \ Iterate over sixel groups
+        pcmw 0 DO         \ Iterate over column definitions
+          DUP I nsixels * J + + C@
+          [CHAR] ? + EMIT \ Emit sixel data
+        LOOP
+        I nsixels 1- <> IF [CHAR] / EMIT THEN \ Group delimiter
       LOOP
-      I nsixels 1- <> IF [CHAR] / EMIT THEN \ Group delimiter
-    LOOP
+      chrdefbcnt +        \ Next group
     nchars 1- I <> IF semcol.emit THEN \ Character delimiter
-  LOOP ;
+    LOOP
+  DROP ;
 
 \ Same as . but without the trailing BL.
 : decsend ( char -- ) 0 U.R ;
@@ -1832,7 +1836,7 @@ END-STRUCTURE
 \ Utility routine--not a method.
 : collision-handle ( pcol-new vrow-new onproc ghost-addr --
     pcol-new vrow-new )
-  \ Make sure he entity at TOS is a ghost.
+  \ Make sure the entity at TOS is a ghost.
   DUP e.inum C@ 1 #ghosts 1+ WITHIN 0= IF
     S" collision-handle: not a ghost on TOS" crash-and-burn
   THEN
@@ -1879,7 +1883,7 @@ END-STRUCTURE
     lives 2@ -1. D+ lives 2! \ Decrement 'lives' (a double)
     update-lives             \ and update the display
 
-    2000 MS \ Wait for 2 seconds.
+    2000 MS          \ Wait for 2 seconds.
 
     lives 2@ 0. D= IF
       S" collision-handle: game over!" crash-and-burn
