@@ -57,7 +57,7 @@ VARIABLE _case
 \ Using John Metcalf's Xorshift LFSRs PRNG.
 \ http://www.retroprogramming.com/2017/07/
 \   xorshift-pseudorandom-numbers-in-z80.html
-VARIABLE seed  23741 seed ! \ Default in the absence of an RTC
+VARIABLE seed
 
 : random ( -- N )
   seed @ DUP 7 LSHIFT XOR
@@ -86,10 +86,9 @@ VARIABLE serialno \ Instance number generator.
 VARIABLE remitems# 0 remitems# !
 
 \ A clock cycle count during which pacman stays "supercharged."
-100 1+ CONSTANT super-clkcycles
-270 CONSTANT clk0
+120 1+ CONSTANT super-clkcycles
 
-clk0 VALUE clkperiod \ Expressed in milliseconds
+170 CONSTANT clkperiod \ Expressed in milliseconds
 
 \ The entity vector.
 4 CONSTANT #ghosts
@@ -1073,8 +1072,6 @@ IFGF warnings on
 
 : initialize ( -- )
   initvars
-  IFGF TIME&DATE 2DROP 2DROP DROP \ PRNG initialization
-  IFGF ?DUP IF seed ! THEN        \ The seed must be non-zero
   -cursor               \ Cursor off
   -autorepeat           \ Disable keyboard autorepeat
   esc EMIT ."  F"       \ VT400 mode, 7-bit control (PRM/88)
@@ -1106,6 +1103,11 @@ IFGF warnings on
   0 10 AT-XY gamlev  .var
   custom-charset-select ;
 
+\ XXX: this slows the game down considerably when the ghosts
+\ are in the 'frightened" state because:
+\ 1/ the display is updated on every clock cycle.
+\ 2/ under Z79Forth, the pictured numbers code is based on
+\    a very slow long division algorithm.
 : update-suptim ( -- )
   default-charset-select
   clkperiod 5 / S>D suptim 2@ D+ suptim 2!
@@ -1309,6 +1311,8 @@ BEGIN-STRUCTURE entity
   CFIELD: e.pcol0    \ Initial pcol number
   CFIELD: e.vrow0    \ Initial vrow number
   CFIELD: e.dir0     \ Initial direction
+  CFIELD: e.hcvr#    \ Home corner vrow# (ghosts)
+  CFIELD: e.hcpc#    \ Home corner pcol# (ghosts)
   CFIELD: e.cdir     \ Current direction
   CFIELD: e.pdir     \ Previous direction (pacman)
   CFIELD: e.idir     \ Intended direction (pacman)
@@ -1754,6 +1758,9 @@ END-STRUCTURE
       case! score DUP 2@
       cross case? IF 10. THEN
       pellet case? IF  \ Enter "supercharged" mode
+        \ Note: we do not reset the 'reward' field here.
+        \ Maybe we should--or not. This is a possible way
+        \ to achieve wicked scores!!!
         super-clkcycles R@ e.issuper C! \ A clock cycle count
         bell 50.
       THEN
@@ -1975,7 +1982,7 @@ END-STRUCTURE
   R> DROP ;
 
 \ Entity constructor.
-: entity.new ( "name" -- address ; vrow pcol cdir -- )
+: entity.new ( "name" -- address; hcvr hcpc vrow pcol cdir -- )
   CREATE
     entity ALLOT
   DOES>            \ vrow\pcol\cdir\address
@@ -1996,37 +2003,41 @@ END-STRUCTURE
     serialno @ DUP     R@ e.inum     C!
       1+ serialno !
     \ Initialize fields from arguments.
-    DUP R@ e.dir0  C! R@ e.cdir  C! \ vrow\pcol
-    DUP R@ e.pcol0 C! R@ e.pcol# C! \ vrow
-    DUP R@ e.vrow0 C! R@ e.vrow# C! \ --
+    DUP R@ e.dir0  C! R@ e.cdir  C! \ hcvr\hcpc\vrow\pcol
+    DUP R@ e.pcol0 C! R@ e.pcol# C! \ hcvr\hcpc\vrow
+    DUP R@ e.vrow0 C! R@ e.vrow# C! \ hcvr\hcpc
+    \ Register home corner details--only relevant for ghosts.
+    R@ e.hcpc# C!                   \ hcvr
+    R@ e.hcvr# C!                   \ --
     R> ;           \ Return 'address'
 
 entvec
   \ By convention, we have PM as instance #0.
   \ This is a central assumption though!
   entity.new pacman
-  34 32 dir_right pacman
+  $FF $FF 34 32 dir_right pacman
   OVER ! CELL+
 
   entity.new blinky
-  14 32 dir_left blinky \ North central ghost
+  4 60 14 32 dir_left blinky \ North central ghost
   OVER ! CELL+
 
   entity.new inky
-  20 30 dir_down inky   \ Western ghost
+  40 60 20 30 dir_down inky   \ Western ghost
   OVER ! CELL+
 
   entity.new pinky
-  20 32 dir_up pinky    \ Central ghost
+  4 2 20 32 dir_up pinky    \ Central ghost
   OVER ! CELL+
 
   entity.new clyde
-  20 34 dir_left clyde  \ Eastern ghost
+  40 2 20 34 dir_left clyde  \ Eastern ghost
   OVER ! CELL+
 DROP                    \ Last defined entity
 
-\ Reset all entities coordinates and set 'inited' to FALSE.
+\ Reset all entities coords/dir and set 'inited' to FALSE.
 \ Also clear PM's 'issuper' attribute and the 'reward' field.
+\ Reset the PRNG's seed to a fixed value, as per the gospel.
 : level-entry-inits ( -- )
   pacman-addr entity.reset-coords-and-dir
   FALSE pacman-addr e.inited C!
@@ -2038,7 +2049,9 @@ DROP                    \ Last defined entity
       DUP entity.reset-coords-and-dir
       e.inited FALSE SWAP C!
     CELL+
-  LOOP DROP ;
+  LOOP DROP
+
+  23741 seed ! ;
 
 \ -------------------------------------------------------------
 \ Entry point here.
@@ -2051,9 +2064,10 @@ DROP                    \ Last defined entity
       update-level
       level-entry-inits
       \ Shorten the clock period a little.
-      clkperiod 20 > IF
-        clkperiod 15 - TO clkperiod \ Don't let it drop below 5
-      THEN
+      \ 9600 bps: interactivity is lost if we go below 130 MS
+\     clkperiod 20 > IF
+\       clkperiod 15 - TO clkperiod \ Don't let it drop below 5
+\     THEN
     ELSE
       entvec @ DUP e.strategy :: \ Pacman's move
       entvec CELL+ #ghosts 0 ?DO
