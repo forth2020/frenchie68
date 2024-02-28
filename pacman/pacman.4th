@@ -88,6 +88,7 @@ VARIABLE remitems# 0 remitems# !
 \ A clock cycle count during which pacman stays "supercharged."
 120 1+ CONSTANT super-clkcycles
 
+\ 9600 bps: interactivity is lost if we go below 130 MS
 170 CONSTANT clkperiod \ Expressed in milliseconds
 
 \ The entity vector.
@@ -2063,11 +2064,6 @@ DROP                    \ Last defined entity
       .initial-grid
       update-level
       level-entry-inits
-      \ Shorten the clock period a little.
-      \ 9600 bps: interactivity is lost if we go below 130 MS
-\     clkperiod 20 > IF
-\       clkperiod 15 - TO clkperiod \ Don't let it drop below 5
-\     THEN
     ELSE
       entvec @ DUP e.strategy :: \ Pacman's move
       entvec CELL+ #ghosts 0 ?DO
@@ -2082,7 +2078,6 @@ DROP                    \ Last defined entity
   initialize
   entvec @ TO pacman-addr
   0 remitems# !     \ Force level entry initializations
-  clk0 TO clkperiod \ Reset the clock period between games!!!
   PAGE .init-sitrep \ Initial scoreboard
 
   IFZ7 _main finalize
