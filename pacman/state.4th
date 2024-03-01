@@ -25,7 +25,7 @@ VARIABLE _case
 200 CONSTANT clkperiod \ Expressed in milliseconds
 120 CONSTANT super-clkcycles
 
-\ Those are global variables.
+\ Those are global variables (in disguise).
 mode_scatter VALUE gm_cur
 mode_unspec  VALUE gm_prv
 
@@ -50,9 +50,9 @@ CREATE gm_sched
 ( Chase   ) -1 ,    -1 ,    -1 ,    \ 6+ -> forever
 
 : gm_timer-initval-get ( level seqno -- clkcount )
-  DUP 6 > IF
-    DROP 7
-  THEN
+\ DUP 6 > IF
+\   DROP 7
+\ THEN
   3 * SWAP          \ seqno*3\level
   DUP 1 = IF
     DROP 0
@@ -72,7 +72,7 @@ FALSE VALUE reversal_flag
   gm_seqno DUP 6 < IF 1+ EXIT THEN
   DROP 7 ;          \ The sequence number is capped at 7
 
-\ Called after a context change (sequence number ot game level)
+\ Called after a context change (sequence number or game level)
 : gm-getnext ( -- mode )
   gamlev 2@ D>S gm_seqno gm_timer-initval-get
   DUP -1 <> DUP TO gm_timer_en IF
@@ -119,9 +119,10 @@ IFGF TYPE [CHAR] ] EMIT SPACE
     ." sqn: " gm_seqno .
     ." ten: " gm_timer_en 2 .R SPACE
     ." gmt: " gm_timer @  4 .R SPACE
-    ." rev: " reversal_flag 2 .R
+    ." rvd: " reversal_flag 2 .R
 
-  FALSE TO reversal_flag ; \ Clear the reversal flag.
+  \ Clear the reversal flag--all ghosts instances.
+  FALSE TO reversal_flag ;
 
 \ This should be called only after le-inits in any given level.
 : gm-switchto ( mode -- )
@@ -149,9 +150,8 @@ IFGF TYPE [CHAR] ] EMIT SPACE
   super-clkcycles fright_timer ! ; \ Enable the 'fright' timer
 
 : super-leave ( -- )
-  gm_cur mode_unspec =
-    ABORT" Current ghost mode is undefined"
-
+\ gm_cur mode_unspec =
+\   ABORT" Current ghost mode is undefined"
   gm_prv gm-switchto
   TRUE TO gm_timer_en ;            \ Re-enable gm_timer
 
@@ -160,8 +160,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
 
 : main ( -- )
   game-inits
-  le-inits
-  .sitrep
+  le-inits .sitrep
   BEGIN
     \ Need to poll for keyboard input:
     \ 'f' -> enter frightened mode.
@@ -171,8 +170,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
       [CHAR] f CASE? IF super-enter .sitrep THEN
       [CHAR] n CASE? IF
         gamlev 2@ 1. D+ gamlev 2!
-        le-inits
-        .sitrep
+        le-inits .sitrep
       THEN
     THEN
 
@@ -180,8 +178,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
       fright_timer @ ?DUP IF    \ Continue w/ frightened ghosts
         1- fright_timer !
       ELSE
-        super-leave
-        .sitrep
+        super-leave .sitrep
       THEN
     THEN
 
