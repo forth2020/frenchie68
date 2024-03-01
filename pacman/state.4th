@@ -4,8 +4,13 @@
   FIND 0= IF DROP FALSE THEN ;
 
 : gf? [ find79 utime ] LITERAL ;      \ TRUE if GNU Forth
+: z7? [ find79 mcc ] LITERAL ;        \ TRUE if Z79Forth/A
 
 : IFGF [ gf? 0= ] LITERAL IF POSTPONE \ THEN ; IMMEDIATE
+: IFZ7 [ z7? 0= ] LITERAL IF POSTPONE \ THEN ; IMMEDIATE
+
+IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
+IFZ7 : D>S DROP ;
 
 VARIABLE _case
 : case! _case ! ;
@@ -24,8 +29,8 @@ VARIABLE _case
 mode_scatter VALUE gm_cur
 mode_unspec  VALUE gm_prv
 
-2VARIABLE gamlev
 IFGF 2VARIABLE utime0
+2VARIABLE gamlev
 
 0    VALUE gm_seqno
 TRUE VALUE gm_timer_en
@@ -197,6 +202,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
 main
 
 \ Test vectors:
+\ game-inits le-inits .sitrep
 \ mode_fright gm-switchto .sitrep \ fright from scatter
 \ mode_fright gm-switchto .sitrep \ fright from fright
 \ Following transition is conceivable but not realistic!
