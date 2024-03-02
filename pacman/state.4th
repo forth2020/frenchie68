@@ -50,9 +50,6 @@ CREATE gm_sched
 ( Chase   ) -1 ,    -1 ,    -1 ,    \ 6+ -> forever
 
 : gm_timer-initval-get ( level seqno -- clkcount )
-\ DUP 6 > IF
-\   DROP 7
-\ THEN
   3 * SWAP          \ seqno*3\level
   DUP 1 = IF
     DROP 0
@@ -115,8 +112,8 @@ IFGF S>D <# # [CHAR] . HOLD # # # [CHAR] , HOLD # # # #>
 IFGF TYPE [CHAR] ] EMIT SPACE
     ." cur: " gm_cur .mode SPACE
     ." prv: " gm_prv .mode SPACE
-    ." glv: " gamlev 2@ D>S 2 .R SPACE
-    ." sqn: " gm_seqno .
+    ." gl#: " gamlev 2@ D>S 2 .R SPACE
+    ." sn#: " gm_seqno .
     ." ten: " gm_timer_en 2 .R SPACE
     ." gmt: " gm_timer @  4 .R SPACE
     ." rvd: " reversal_flag 2 .R
@@ -150,8 +147,6 @@ IFGF TYPE [CHAR] ] EMIT SPACE
   super-clkcycles fright_timer ! ; \ Enable the 'fright' timer
 
 : super-leave ( -- )
-\ gm_cur mode_unspec =
-\   ABORT" Current ghost mode is undefined"
   gm_prv gm-switchto
   TRUE TO gm_timer_en ;            \ Re-enable gm_timer
 
