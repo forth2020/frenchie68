@@ -17,6 +17,36 @@ VARIABLE _case
 : case@ _case @ ;
 : case? case@ = ;
 
+\ -------------------------------------------------------------
+\ Euclidian distance calculation support code.
+
+\ <= is non-standard!!!
+\ However GNU Forth, SwiftForth, VFX and Z79Forth support it.
+\ : <= ( a b -- flag )
+\   2DUP < ROT ROT = OR ;
+
+\ Integer square root calculation. See wikipedia.org,
+\ integer_square_root (binary search).
+\ Note: this will not converge for negative values of y!!!
+: isqrt ( y -- x )
+  >R
+  0 R@ 1+           \ S: L\R
+  BEGIN
+    2DUP 1- <>
+  WHILE             \ S: L\R
+    2DUP + 1 RSHIFT \ S: L\R\M
+    DUP DUP *       \ S: L\R\M\M^2
+    R@ <= IF        \ S: L\R\M
+      ROT DROP SWAP \ S: M\R
+    ELSE
+      NIP           \ S: L\M
+    THEN
+  REPEAT
+  DROP R> DROP ;
+
+\ -------------------------------------------------------------
+\ Ghost mode logic follows.
+
 0 CONSTANT mode_scatter
 1 CONSTANT mode_chase \ Each ghost may defines its own policy!
 2 CONSTANT mode_fright
@@ -80,7 +110,7 @@ FALSE VALUE reversal_flag
       mode_chase
     THEN 
   ELSE
-    mode_chase 
+    DROP mode_chase 
   THEN ;
 
 \ Level entry initializations.
@@ -118,7 +148,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
     ." gmt: " gm_timer @  4 .R SPACE
     ." rvd: " reversal_flag 2 .R
 
-  \ Clear the reversal flag--all ghosts instances.
+  \ Clear the reversal flag--all ghost instances.
   FALSE TO reversal_flag ;
 
 \ This should be called only after le-inits in any given level.
