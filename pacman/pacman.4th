@@ -42,6 +42,8 @@ IFZ7 : ;pn   [CHAR] ; EMIT pn ;
 IFZ7 : ESC[  #27 EMIT [CHAR] [ EMIT ;
 IFZ7 : AT-XY 1+ SWAP 1+ SWAP ESC[ pn ;pn [CHAR] H EMIT ;
 
+IFZ7 : D>S DROP ;
+
 \ A poor man's replacement for the ANS94 CASE construct.
 VARIABLE _case
 
@@ -49,10 +51,41 @@ VARIABLE _case
 : case@ _case @ ;
 : case? case@ = ;
 
+\ -------------------------------------------------------------
+\ Debugging support constants.
+
 \ bit #0: enable traces in entity.move
 \ bit #1: enable traces in ghost.dirselect 
 %00 CONSTANT debug
 
+\ -------------------------------------------------------------
+\ Euclidian distance calculation support code.
+
+\ <= is non-standard!!!
+\ However GNU Forth, SwiftForth, VFX and Z79Forth support it.
+\ : <= ( a b -- flag )
+\   2DUP < ROT ROT = OR ;
+
+\ Integer square root calculation. See wikipedia.org,
+\ article "integer_square_root" (binary search).
+\ Note: this will not converge for negative values of y!!!
+: isqrt ( y -- x )
+  >R
+  0 R@ 1+           \ S: L\R
+  BEGIN
+    2DUP 1- <>
+  WHILE             \ S: L\R
+    2DUP + 1 RSHIFT \ S: L\R\M
+    DUP DUP *       \ S: L\R\M\M^2
+    R@ <= IF        \ S: L\R\M
+      ROT DROP SWAP \ S: M\R
+    ELSE
+      NIP           \ S: L\M
+    THEN
+  REPEAT
+  DROP R> DROP ;
+
+\ -------------------------------------------------------------
 \ Pseudo-random number generator.
 \ Using John Metcalf's Xorshift LFSRs PRNG.
 \ http://www.retroprogramming.com/2017/07/
@@ -66,8 +99,8 @@ VARIABLE seed
   DUP seed ! ;
 
 \ -------------------------------------------------------------
-\ Games variables implemented as doubles so as to be able
-\ to support 16 bit cell targets.
+\ Games counter variables implemented as doubles so as to be
+\ able to support 16 bit cell targets.
 IFZ7 : 2VARIABLE VARIABLE 1 CELLS ALLOT ;
 
 \ D= is ANS94 Double. That's beyond Core.
@@ -85,6 +118,9 @@ VARIABLE serialno \ Instance number generator.
 
 VARIABLE remitems# 0 remitems# !
 
+\ Disable BELL if TRUE
+TRUE CONSTANT silent
+
 \ A clock cycle count during which pacman stays "supercharged."
 120 1+ CONSTANT super-clkcycles
 
@@ -95,6 +131,15 @@ VARIABLE remitems# 0 remitems# !
 4 CONSTANT #ghosts
 #ghosts 1+ CONSTANT #entities
 CREATE entvec #entities CELLS ALLOT
+
+\ Forward references...
+DEFER fright_timer
+DEFER super-enter
+DEFER super-leave
+
+\ This does not belong here and yet VALUE references cannot
+\ be DEFERred in a portable way. So it goes...
+TRUE VALUE gm_timer_en
 
 \ -------------------------------------------------------------
 \ Grid specification.
@@ -1048,9 +1093,10 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 : default-charset-select ( -- )
   $0F EMIT ;            \ GL <- G0 (LS0 locking shift)
 
-\ Used by pacman when entering/leaving the "issuper" state.
+\ Used by PM when entering/leaving the "supercharged" state.
 IFGF warnings off
 : bell ( -- )
+  silent IF EXIT THEN
   default-charset-select
   7 EMIT
   custom-charset-select ;
@@ -1058,6 +1104,7 @@ IFGF warnings on
 
 \ Referenced when using the "pacman defense"--killing a ghost.
 : 2bell ( -- )
+  silent IF EXIT THEN
   default-charset-select
   7 EMIT 7 EMIT
   custom-charset-select ;
@@ -1069,7 +1116,9 @@ IFGF warnings on
   3. lives  2!          \ This is clearly overkill
   0. gamlev 2!          \ And so is this
   0. bonus  2!          \ Semantics need clarification
-  0. suptim 2! ;        \ Semantics need clarification
+  0. suptim 2!          \ Semantics need clarification
+  TRUE TO gm_timer_en   \ Enable ghost mode scheduler
+  0 remitems# ! ;       \ Force level entry initializations
 
 : initialize ( -- )
   initvars
@@ -1315,10 +1364,10 @@ BEGIN-STRUCTURE entity
   CFIELD: e.hcvr#    \ Home corner vrow# (ghosts)
   CFIELD: e.hcpc#    \ Home corner pcol# (ghosts)
   CFIELD: e.cdir     \ Current direction
-  CFIELD: e.pdir     \ Previous direction (pacman)
+  CFIELD: e.pdir     \ Previous direction
   CFIELD: e.idir     \ Intended direction (pacman)
+  CFIELD: e.revflg   \ Reverse direction directive (ghosts)
   CFIELD: e.inited   \ TRUE if first display has been performed
-  CFIELD: e.issuper  \ # Clock ticks in "super" state (pacman)
   CFIELD: e.gobbling \ # Clock ticks till we're fed (pacman)
   CFIELD: e.inum     \ Instance serial number
 END-STRUCTURE
@@ -1367,16 +1416,16 @@ END-STRUCTURE
     .pacman EXIT
   THEN
 
-  pacman-addr e.issuper C@ 0= IF \ Ghosts are not frightened
-    1 case? IF .blinky  EXIT THEN
-    2 case? IF .inky    EXIT THEN
-    3 case? IF .pinky   EXIT THEN
-    4 case? IF .clyde   EXIT THEN
-  ELSE                           \ They are. Use reverse video
+  fright_timer @ IF \ Ghosts are frightened. Use reverse video
     1 case? IF .rblinky EXIT THEN
     2 case? IF .rinky   EXIT THEN
     3 case? IF .rpinky  EXIT THEN
     4 case? IF .rclyde  EXIT THEN
+  ELSE              \ They are'nt. Use the regular primitives
+    1 case? IF .blinky  EXIT THEN
+    2 case? IF .inky    EXIT THEN
+    3 case? IF .pinky   EXIT THEN
+    4 case? IF .clyde   EXIT THEN
   THEN
 
   S" entity.display: unknown instance number" crash-and-burn ;
@@ -1490,8 +1539,8 @@ END-STRUCTURE
   LOOP
   AT-XY 2 SPACES
 
-  0 pacman-addr e.issuper C!   \ Reset 'issuper'
-  0 pacman-addr e.reward  C!   \ and the 'reward' field
+  0 fright_timer !           \ PM no longer "supercharged"
+  0 pacman-addr e.reward C!  \ Reset the 'reward' field
 
   \ XXX Should this be considered a generic aspect of dying?
   pacman-addr entity.reset-coords-and-dir ;
@@ -1507,7 +1556,6 @@ END-STRUCTURE
   debug 0= IF EXIT THEN
   custom-charset-select
   KEY DROP ;
-
 
 : ghost.debug-print ( pcol-new vrow-new debug-tag-char self --
     pcol-new vrow-new )
@@ -1762,7 +1810,7 @@ END-STRUCTURE
         \ Note: we do not reset the 'reward' field here.
         \ Maybe we should--or not. This is a possible way
         \ to achieve wicked scores!!!
-        super-clkcycles R@ e.issuper C! \ A clock cycle count
+        super-enter
         bell 50.
       THEN
       D+ ROT 2!
@@ -1776,16 +1824,6 @@ END-STRUCTURE
       THEN
     ELSE
       DROP
-    THEN
-  THEN
-
-  R@ e.issuper C@ ?DUP IF
-    update-suptim
-    \ Decrement the 'issuper' field if non zero.
-    1- R@ e.issuper C!
-    R@ e.issuper C@ 0= IF \ Leave "supercharged" mode
-      0 R@ e.reward C!    \ Reset the ghost kill counter
-      bell
     THEN
   THEN
 
@@ -1852,7 +1890,7 @@ END-STRUCTURE
   SWAP >R            \ Backup 'onproc'
   \ S: pcol-new\vrow-new\ghost-addr, R: onproc
 
-  pacman-addr e.issuper C@ IF
+  fright_timer @ IF
     \ The ghost at TOS dies--unless it is resurrecting.
     \ Note: only Blinky resurrects outside of the pen.
     DUP e.resurr C@ 0= IF
@@ -1999,8 +2037,8 @@ END-STRUCTURE
     dir_blocked        R@ e.pdir     C!
     dir_unspec         R@ e.idir     C!
     FALSE              R@ e.inited   C!
-    0                  R@ e.issuper  C!
     0                  R@ e.gobbling C!
+    FALSE              R@ e.revflg   C!
     serialno @ DUP     R@ e.inum     C!
       1+ serialno !
     \ Initialize fields from arguments.
@@ -2024,25 +2062,147 @@ entvec
   OVER ! CELL+
 
   entity.new inky
-  40 60 20 30 dir_down inky   \ Western ghost
+  40 60 20 30 dir_down inky  \ Western ghost
   OVER ! CELL+
 
   entity.new pinky
-  4 2 20 32 dir_up pinky    \ Central ghost
+  4 2 20 32 dir_up pinky     \ Central ghost
   OVER ! CELL+
 
   entity.new clyde
   40 2 20 34 dir_left clyde  \ Eastern ghost
   OVER ! CELL+
-DROP                    \ Last defined entity
+DROP                         \ Last defined entity
 
+\ -------------------------------------------------------------
+\ Ghost mode logic is time based but there's more to it than
+\ just time. When PM becomes "supercharged" the ghosts
+\ transition to the frightened state for some time.
+
+0 CONSTANT mode_scatter
+1 CONSTANT mode_chase \ Each ghost may defines its own policy!
+2 CONSTANT mode_fright
+3 CONSTANT mode_unspec
+
+\ Those are global variables (in disguise).
+mode_scatter VALUE gm_cur \ Current mode
+mode_unspec  VALUE gm_prv \ Previous mode
+
+IFGF 2VARIABLE utime0
+
+0    VALUE gm_seqno
+VARIABLE gm_timer
+VARIABLE _fright_timer
+
+\ The ghost mode scheduling table.
+CREATE gm_sched
+\           L1      L2-4    L5+     seqno
+( Scatter ) 35 ,    35 ,    25 ,    \ 0
+( Chase   ) 100 ,   100 ,   100 ,   \ 1
+( Scatter ) 35 ,    35 ,    25 ,    \ 2
+( Chase   ) 100 ,   100 ,   100 ,   \ 3
+( Scatter ) 25 ,    25 ,    25 ,    \ 4
+( Chase   ) 100 ,   5165 ,  5185 ,  \ 5
+( Scatter ) 25 ,    1 ,     1 ,     \ 6
+( Chase   ) -1 ,    -1 ,    -1 ,    \ 6+ -> forever
+
+: gm_timer-initval-get ( level seqno -- clkcount )
+  3 * SWAP          \ seqno*3\level
+  DUP 1 = IF
+    DROP 0
+  ELSE
+    DUP 5 < IF
+      DROP 1
+    ELSE
+      DROP 2
+    THEN
+  THEN
+  + CELLS gm_sched + @ ;
+
+: gm_seqno-getnext ( -- gm_seqno-next )
+  gm_seqno DUP 6 < IF 1+ EXIT THEN
+  DROP 7 ;          \ The sequence number is capped at 7
+
+\ Called after a context change (sequence number or game level)
+: gm-getnext ( -- mode )
+  gamlev 2@ D>S gm_seqno gm_timer-initval-get
+  DUP -1 <> DUP TO gm_timer_en IF
+    gm_timer !
+    gm_seqno 1 AND 0= IF mode_scatter ELSE mode_chase THEN
+    EXIT
+  THEN
+  ( Expensive code follows! ) DROP mode_chase ;
+
+: gm_prv-update ( mode -- )
+  gm_cur mode_fright = IF EXIT THEN
+  gm_cur TO gm_prv ;
+
+: .mode ( mode -- )
+  case!
+  mode_scatter case? IF ." SCATTER" EXIT THEN
+  mode_chase   case? IF ." CHASE  " EXIT THEN
+  mode_fright  case? IF ." FRIGHT " EXIT THEN
+  ." UNSPEC " ;
+
+: .gm-sitrep ( -- )
+  CR
+  \ If operating under GNU Forth, include timing information.
+IFGF [CHAR] [ EMIT
+IFGF utime utime0 2@ DNEGATE D+ DROP 1000 / \ Convert to MS
+IFGF 100 / \ Convert to tenth of seconds
+IFGF S>D <# # [CHAR] . HOLD # # # [CHAR] , HOLD # # # #>
+IFGF TYPE [CHAR] ] EMIT SPACE
+    ." cur: " gm_cur .mode SPACE
+    ." prv: " gm_prv .mode SPACE
+    ." gl#: " gamlev 2@ D>S 2 .R SPACE
+    ." sn#: " gm_seqno .
+    ." ten: " gm_timer_en 2 .R SPACE
+    ." gmt: " gm_timer @  4 .R
+
+  \ Clear the reversal flag--all ghost instances.
+\ FALSE TO reversal_flag ;
+  ;
+
+\ In any given level, this should be called only after
+\ level-entry-inits.
+: gm-switchto ( mode -- )
+  DUP gm_cur = IF   \ Current mode is not changing
+    DROP EXIT
+  THEN
+
+  \ The following, if TRUE, should be signalled to
+  \ all ghost instances.
+\ gm_cur mode_fright <> TO reversal_flag
+
+  gm_prv-update
+  TO gm_cur ;
+
+: _super-enter ( -- )
+  \ We might want to EXIT immediately depending on 'gamlev'
+  gm_cur mode_fright = IF \ Already frightened
+    super-clkcycles fright_timer ! \ Be kind, reset the timer!
+    EXIT
+  THEN
+
+  gm_prv-update
+  mode_fright TO gm_cur
+  FALSE TO gm_timer_en             \ Suspend gm_timer
+  super-clkcycles fright_timer ! ; \ Enable the 'fright' timer
+
+: _super-leave ( -- )
+  0 pacman-addr e.reward C! \ Reset ghost kill counter
+  bell
+  gm_prv gm-switchto
+  TRUE TO gm_timer_en ;            \ Re-enable gm_timer
+
+\ -------------------------------------------------------------
 \ Reset all entities coords/dir and set 'inited' to FALSE.
-\ Also clear PM's 'issuper' attribute and the 'reward' field.
+\ Also clear 'fright_timer' and PM's 'reward' field.
 \ Reset the PRNG's seed to a fixed value, as per the gospel.
+
 : level-entry-inits ( -- )
   pacman-addr entity.reset-coords-and-dir
   FALSE pacman-addr e.inited C!
-  0 pacman-addr e.issuper C!
   0 pacman-addr e.reward C!
 
   entvec CELL+ #ghosts 0 ?DO
@@ -2052,32 +2212,62 @@ DROP                    \ Last defined entity
     CELL+
   LOOP DROP
 
-  23741 seed ! ;
+  23741 seed !
+
+  \ Ghost mode level entry initializations.
+  IFGF utime utime0 2!
+  0 fright_timer !
+  0 TO gm_seqno
+  gm-getnext  TO gm_cur
+  mode_unspec TO gm_prv ;
 
 \ -------------------------------------------------------------
 \ Entry point here.
 
 : _main ( -- )
   BEGIN
-    \ Check if remitems# is 0 here. If so start new level.
-    remitems# @ 0= IF
+    DEPTH IF S" WTF?" crash-and-burn THEN
+    remitems# @ 0= IF      \ If remitems# is 0, start new level
       .initial-grid
       update-level
       level-entry-inits
     ELSE
+      \ Ghost mode handling.
+      gm_cur mode_fright = IF
+        fright_timer @ ?DUP IF \ Continue w/ frightened ghosts
+          1- fright_timer !
+          update-suptim
+        ELSE
+          super-leave
+        THEN
+      ELSE
+        gm_timer_en IF
+          gm_timer @ ?DUP IF
+            1- gm_timer !           \ Ghost mode unchanged
+          ELSE
+            gm_seqno-getnext TO gm_seqno
+            gm-getnext gm-switchto  \ Re-compute gm parameters
+          THEN
+        THEN
+      THEN
+
+      \ Regular entity scheduling.
       entvec @ DUP e.strategy :: \ Pacman's move
       entvec CELL+ #ghosts 0 ?DO
-        DUP @ DUP e.strategy :: \ Move the current ghost
+        DUP @ DUP e.strategy ::  \ Move the current ghost
         CELL+
       LOOP DROP
+
       clkperiod MS
     THEN
   AGAIN ;
 
 : main ( -- )
-  initialize
   entvec @ TO pacman-addr
-  0 remitems# !     \ Force level entry initializations
+  ['] _fright_timer IS fright_timer
+  ['] _super-enter  IS super-enter
+  ['] _super-leave  IS super-leave
+  initialize
   PAGE .init-sitrep \ Initial scoreboard
 
   IFZ7 _main finalize
