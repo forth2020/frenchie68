@@ -121,13 +121,13 @@ VARIABLE serialno \ Instance number generator.
 VARIABLE remitems# 0 remitems# !
 
 \ Disable BELL if TRUE
-TRUE CONSTANT silent
+FALSE CONSTANT silent
 
 \ A clock cycle count during which pacman stays "supercharged."
 120 1+ CONSTANT super-clkcycles
 
 \ 9600 bps: interactivity is lost if we go below 130 MS
-200 CONSTANT clkperiod \ Expressed in milliseconds
+170 CONSTANT clkperiod \ Expressed in milliseconds
 
 \ The entity vector.
 4 CONSTANT #ghosts
@@ -1557,9 +1557,8 @@ END-STRUCTURE
   custom-charset-select
   KEY DROP ;
 
-\ Block boundary alignment of sorts...
-: ghost.debug-print ( pcol-new vrow-new debug-tag-char self --
-    pcol-new vrow-new )
+: ghost.debug-print ( pcol-new vrow-new debug-tag-char self )
+  ( -- pcol-new vrow-new )
   DUP e.inum C@ 0= IF 2DROP EXIT THEN \ If not a ghost
   debug 1 AND 0=   IF 2DROP EXIT THEN \ If not in debug mode
   debug-enter
@@ -1887,8 +1886,8 @@ END-STRUCTURE
   R> DROP ;
 
 \ Utility routine--not a method.
-: collision-handle ( pcol-new vrow-new onproc ghost-addr --
-    pcol-new vrow-new )
+: collision-handle ( pcol-new vrow-new onproc ghost-addr -- )
+  ( pcol-new vrow-new )
   \ Make sure the entity at TOS is a ghost.
   DUP e.inum C@ 1 #ghosts 1+ WITHIN 0= IF
     S" collision-handle: not a ghost on TOS" crash-and-burn
@@ -2136,12 +2135,12 @@ CREATE gm_sched
   gamlev 2@ D>S gm_seqno gm_timer-initval-get
   DUP -1 <> DUP TO gm_timer_en IF
     gm_timer !
-    gm_seqno 1 AND 0= IF mode_scatter ELSE mode_chase THEN
+    gm_seqno 1 AND IF mode_chase ELSE mode_scatter THEN
     EXIT
   THEN
-  ( Expensive code follows! ) DROP mode_chase ;
+  DROP mode_chase ;
 
-: gm_prv-update ( mode -- )
+: gm_prv-update ( -- )
   gm_cur mode_fright = ?EXIT
   gm_cur TO gm_prv ;
 
