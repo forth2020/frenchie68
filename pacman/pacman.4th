@@ -43,6 +43,8 @@ IFZ7 : ESC[  #27 EMIT [CHAR] [ EMIT ;
 IFZ7 : AT-XY 1+ SWAP 1+ SWAP ESC[ pn ;pn [CHAR] H EMIT ;
 
 IFZ7 : D>S DROP ;
+IFZ7 : ?EXIT POSTPONE IF POSTPONE EXIT POSTPONE THEN ;
+IFZ7   IMMEDIATE
 
 \ A poor man's replacement for the ANS94 CASE construct.
 VARIABLE _case
@@ -125,7 +127,7 @@ TRUE CONSTANT silent
 120 1+ CONSTANT super-clkcycles
 
 \ 9600 bps: interactivity is lost if we go below 130 MS
-170 CONSTANT clkperiod \ Expressed in milliseconds
+200 CONSTANT clkperiod \ Expressed in milliseconds
 
 \ The entity vector.
 4 CONSTANT #ghosts
@@ -1096,7 +1098,7 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
 \ Used by PM when entering/leaving the "supercharged" state.
 IFGF warnings off
 : bell ( -- )
-  silent IF EXIT THEN
+  silent ?EXIT
   default-charset-select
   7 EMIT
   custom-charset-select ;
@@ -1104,7 +1106,7 @@ IFGF warnings on
 
 \ Referenced when using the "pacman defense"--killing a ghost.
 : 2bell ( -- )
-  silent IF EXIT THEN
+  silent ?EXIT
   default-charset-select
   7 EMIT 7 EMIT
   custom-charset-select ;
@@ -1365,10 +1367,10 @@ BEGIN-STRUCTURE entity
   CFIELD: e.hcpc#    \ Home corner pcol# (ghosts)
   CFIELD: e.cdir     \ Current direction
   CFIELD: e.pdir     \ Previous direction
-  CFIELD: e.idir     \ Intended direction (pacman)
+  CFIELD: e.idir     \ Intended direction (PM)
   CFIELD: e.revflg   \ Reverse direction directive (ghosts)
   CFIELD: e.inited   \ TRUE if first display has been performed
-  CFIELD: e.gobbling \ # Clock ticks till we're fed (pacman)
+  CFIELD: e.gobbling \ # Clock ticks till we're fed (PM)
   CFIELD: e.inum     \ Instance serial number
 END-STRUCTURE
 
@@ -1547,16 +1549,15 @@ END-STRUCTURE
 
 \ Debugging support.
 : debug-enter ( -- )
-  debug 0= IF EXIT THEN
   default-charset-select
   0 23 AT-XY 78 SPACES
   0 23 AT-XY ;
 
 : debug-leave ( -- )
-  debug 0= IF EXIT THEN
   custom-charset-select
   KEY DROP ;
 
+\ Block boundary alignment of sorts...
 : ghost.debug-print ( pcol-new vrow-new debug-tag-char self --
     pcol-new vrow-new )
   DUP e.inum C@ 0= IF 2DROP EXIT THEN \ If not a ghost
@@ -1671,20 +1672,18 @@ END-STRUCTURE
   DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
   DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
 
-  \ All directions should be considered equally. By policy, we
-  \ choose to exclude opposite(cdir), i.e. we're not going
-  \ back on our steps. The grid has no dead end so we will end
-  \ up with at least one viable option.
   %1111            \ The sum of a priori alternatives
-  OVER e.cdir C@
-    2 + 3 AND
-    bitclear       \ Exclude opposite(cdir)
+  OVER e.revflg C@ IF
+    OVER e.revflg 0 SWAP C!
+    TRUE
+  ELSE
+    OVER e.cdir C@
+      2 + 3 AND
+      bitclear       \ Exclude opposite(cdir)
+    FALSE
+  THEN               \ S: self\bitmap\revflg
+  -ROT               \ S: revflg\self\bitmap
 
-  debug 2 AND IF
-    debug-enter  ." bitmap A: " DUP .  debug-leave
-  THEN
-
-  \ S: self\bitmap
   dir_right 1+ dir_up DO
     DUP I bitset? IF \ Direction I is a priori viable
       OVER I can-move-in-dir? \ Check for a possible obstacle
@@ -1695,29 +1694,37 @@ END-STRUCTURE
   LOOP
 
   debug 2 AND IF
-    debug-enter  ." bitmap B: " DUP .  debug-leave
+    debug-enter  ." bitmap: " DUP .  debug-leave
   THEN
 
   \ If we are inside of the ghosts' pen and the current
   \ direction remains an option, stick to it.
-  OVER in-ghosts-pen? IF \ S: self\bitmap
-    OVER e.cdir C@ \ S: self\bitmap\cdir
-    1 SWAP LSHIFT  \ S: self\bitmap\1<<cdir
-    OVER AND IF    \ S: self\bitmap
-      DROP e.cdir C@ EXIT
+  OVER in-ghosts-pen? IF \ S: revflg\self\bitmap
+    OVER e.cdir C@       \ S: revflg\self\bitmap\cdir
+    2DUP bitset? IF      \ S: revflg\self\bitmap\cdir
+      NIP NIP NIP EXIT
+    ELSE
+      DROP
     THEN
-  THEN
+  THEN                   \ S: revflg\self\bitmap
 
-  NIP              \ S: bitmap
+  ROT IF                 \ Direction reversal is requested
+    SWAP e.cdir C@
+      2 + 3 AND DUP >R bitset?  IF R> EXIT THEN
+    R> S" opp(cdir) not viable!!!" crash-and-burn
+  THEN                   \ S: self\bitmap
+
+  \ The following implements the frightened ghost mode.
+  NIP                    \ S: bitmap
   dir_right 1+ dir_up DO
-    DUP 1 AND      \ S: bitmap\bit0(bitmap)
-    SWAP 1 RSHIFT SWAP  \ S: bitmap>>1\bit0(bitmap)
-    IF             \ bit0(bitmap) is set; S: bitmap>>1
-      ?DUP IF      \ There are other possible directions
+    DUP 1 AND            \ S: bitmap\bit0(bitmap)
+    SWAP 1 RSHIFT SWAP   \ S: bitmap>>1\bit0(bitmap)
+    IF                   \ bit0(bitmap) is set; S: bitmap>>1
+      ?DUP IF            \ There are other possible directions
         random 8 AND IF
           DROP I UNLOOP EXIT \ Select direction I
         THEN
-      ELSE         \ There are no alternatives left
+      ELSE               \ There are no alternatives left
         I UNLOOP EXIT
       THEN
     THEN
@@ -1811,7 +1818,7 @@ END-STRUCTURE
         \ Maybe we should--or not. This is a possible way
         \ to achieve wicked scores!!!
         super-enter
-        bell 50.
+        50.
       THEN
       D+ ROT 2!
       update-score
@@ -1894,7 +1901,6 @@ END-STRUCTURE
     \ The ghost at TOS dies--unless it is resurrecting.
     \ Note: only Blinky resurrects outside of the pen.
     DUP e.resurr C@ 0= IF
-      2bell          \ Beep twice
       DUP .interfering
       0 OVER e.igchr C!
 
@@ -2090,20 +2096,20 @@ mode_unspec  VALUE gm_prv \ Previous mode
 
 IFGF 2VARIABLE utime0
 
-0    VALUE gm_seqno
+0 VALUE gm_seqno
 VARIABLE gm_timer
 VARIABLE _fright_timer
 
 \ The ghost mode scheduling table.
 CREATE gm_sched
 \           L1      L2-4    L5+     seqno
-( Scatter ) 35 ,    35 ,    25 ,    \ 0
-( Chase   ) 100 ,   100 ,   100 ,   \ 1
-( Scatter ) 35 ,    35 ,    25 ,    \ 2
-( Chase   ) 100 ,   100 ,   100 ,   \ 3
-( Scatter ) 25 ,    25 ,    25 ,    \ 4
-( Chase   ) 100 ,   5165 ,  5185 ,  \ 5
-( Scatter ) 25 ,    1 ,     1 ,     \ 6
+( Scatter ) 7 ,     7 ,     5 ,     \ 0
+( Chase   ) 20 ,    20 ,    20 ,    \ 1
+( Scatter ) 7 ,     7 ,     5 ,     \ 2
+( Chase   ) 20 ,    20 ,    20 ,    \ 3
+( Scatter ) 5 ,     5 ,     5 ,     \ 4
+( Chase   ) 20 ,    1033 ,  1037 ,  \ 5
+( Scatter ) 5 ,     1 ,     1 ,     \ 6
 ( Chase   ) -1 ,    -1 ,    -1 ,    \ 6+ -> forever
 
 : gm_timer-initval-get ( level seqno -- clkcount )
@@ -2117,7 +2123,9 @@ CREATE gm_sched
       DROP 2
     THEN
   THEN
-  + CELLS gm_sched + @ ;
+  + CELLS gm_sched + @
+  DUP -1 = ?EXIT
+  1000 clkperiod */ ;
 
 : gm_seqno-getnext ( -- gm_seqno-next )
   gm_seqno DUP 6 < IF 1+ EXIT THEN
@@ -2134,7 +2142,7 @@ CREATE gm_sched
   ( Expensive code follows! ) DROP mode_chase ;
 
 : gm_prv-update ( mode -- )
-  gm_cur mode_fright = IF EXIT THEN
+  gm_cur mode_fright = ?EXIT
   gm_cur TO gm_prv ;
 
 : .mode ( mode -- )
@@ -2158,9 +2166,6 @@ IFGF TYPE [CHAR] ] EMIT SPACE
     ." sn#: " gm_seqno .
     ." ten: " gm_timer_en 2 .R SPACE
     ." gmt: " gm_timer @  4 .R
-
-  \ Clear the reversal flag--all ghost instances.
-\ FALSE TO reversal_flag ;
   ;
 
 \ In any given level, this should be called only after
@@ -2170,16 +2175,21 @@ IFGF TYPE [CHAR] ] EMIT SPACE
     DROP EXIT
   THEN
 
-  \ The following, if TRUE, should be signalled to
-  \ all ghost instances.
-\ gm_cur mode_fright <> TO reversal_flag
+  \ If switching away from chase or scatter modes, signal
+  \ direction reversal request to all ghost instances.
+  gm_cur mode_fright <> IF
+    entvec CELL+ #ghosts 0 ?DO
+      DUP @ e.revflg TRUE SWAP C!
+      CELL+
+    LOOP DROP bell
+  THEN
 
   gm_prv-update
   TO gm_cur ;
 
 : _super-enter ( -- )
   \ We might want to EXIT immediately depending on 'gamlev'
-  gm_cur mode_fright = IF \ Already frightened
+  gm_cur mode_fright = IF          \ Already frightened
     super-clkcycles fright_timer ! \ Be kind, reset the timer!
     EXIT
   THEN
@@ -2191,7 +2201,6 @@ IFGF TYPE [CHAR] ] EMIT SPACE
 
 : _super-leave ( -- )
   0 pacman-addr e.reward C! \ Reset ghost kill counter
-  bell
   gm_prv gm-switchto
   TRUE TO gm_timer_en ;            \ Re-enable gm_timer
 
