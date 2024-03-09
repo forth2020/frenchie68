@@ -141,6 +141,15 @@ DEFER super-leave
 
 \ This does not belong here and yet VALUE references cannot
 \ be DEFERred in a portable way. So it goes...
+0 CONSTANT mode_scatter
+1 CONSTANT mode_chase \ Each ghost may defines its own policy!
+2 CONSTANT mode_fright
+3 CONSTANT mode_unspec
+
+\ Those are global variables (in disguise).
+mode_scatter VALUE gm_cur \ Current mode
+mode_unspec  VALUE gm_prv \ Previous mode
+
 TRUE VALUE gm_timer_en
 
 \ -------------------------------------------------------------
@@ -1665,55 +1674,15 @@ END-STRUCTURE
   R> DUP e.cdir C@ SWAP e.pdir C!
   dir_blocked ;
 
-\ See notes below about ghost.dirselect.
-: _ghost.dirselect ( self -- new-dir )
-  \ No direction changes unless both vrow# and pcol# are even.
-  DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
-  DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
+: only-one-dir? ( bitmap -- bitmap FALSE|dir\TRUE )
+  DUP 1 = IF 0 TRUE EXIT THEN
+  DUP 2 = IF 1 TRUE EXIT THEN
+  DUP 4 = IF 2 TRUE EXIT THEN
+  DUP 8 = IF 3 TRUE EXIT THEN
+  FALSE ;
 
-  %1111            \ The sum of a priori alternatives
-  OVER e.revflg C@ IF
-    OVER e.revflg 0 SWAP C!
-    TRUE
-  ELSE
-    OVER e.cdir C@
-      2 + 3 AND
-      bitclear       \ Exclude opposite(cdir)
-    FALSE
-  THEN               \ S: self\bitmap\revflg
-  -ROT               \ S: revflg\self\bitmap
-
-  dir_right 1+ dir_up DO
-    DUP I bitset? IF \ Direction I is a priori viable
-      OVER I can-move-in-dir? \ Check for a possible obstacle
-      0= IF        \ Blocked in direction I
-        I bitclear
-      THEN
-    THEN
-  LOOP
-
-  debug 2 AND IF
-    debug-enter  ." bitmap: " DUP .  debug-leave
-  THEN
-
-  \ If we are inside of the ghosts' pen and the current
-  \ direction remains an option, stick to it.
-  OVER in-ghosts-pen? IF \ S: revflg\self\bitmap
-    OVER e.cdir C@       \ S: revflg\self\bitmap\cdir
-    2DUP bitset? IF      \ S: revflg\self\bitmap\cdir
-      NIP NIP NIP EXIT
-    ELSE
-      DROP
-    THEN
-  THEN                   \ S: revflg\self\bitmap
-
-  ROT IF                 \ Direction reversal is requested
-    SWAP e.cdir C@
-      2 + 3 AND DUP >R bitset?  IF R> EXIT THEN
-    R> S" opp(cdir) not viable!!!" crash-and-burn
-  THEN                   \ S: self\bitmap
-
-  \ The following implements the frightened ghost mode.
+\ The following implements the frightened ghost mode.
+: _ghost.dirselect-fright ( self bitmap -- new-dir )
   NIP                    \ S: bitmap
   dir_right 1+ dir_up DO
     DUP 1 AND            \ S: bitmap\bit0(bitmap)
@@ -1729,7 +1698,73 @@ END-STRUCTURE
     THEN
   LOOP
 
-  S" ghost.dirselect: no viable direction found"
+  S" _ghost.dirselect-fright: no viable direction found"
+    crash-and-burn ;
+
+: _ghost.dirselect-scatter ( self bitmap -- new-dir )
+  _ghost.dirselect-fright ;
+
+: _ghost.dirselect-chase ( self bitmap -- new-dir )
+  _ghost.dirselect-fright ;
+
+\ See notes below about ghost.dirselect.
+: _ghost.dirselect ( self -- new-dir )
+  \ No direction changes unless both vrow# and pcol# are even.
+  DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
+  DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
+
+  %1111            \ The sum of a priori alternatives
+  OVER e.revflg C@ DUP >R IF
+    OVER e.revflg 0 SWAP C!
+  ELSE
+    OVER e.cdir C@
+      2 + 3 AND
+      bitclear       \ Exclude opposite(cdir)
+  THEN               \ S: self\bitmap
+  R> -ROT            \ S: revflg\self\bitmap
+
+  dir_right 1+ dir_up DO
+    DUP I bitset? IF \ Direction I is a priori viable
+      OVER I can-move-in-dir? \ Check for a possible obstacle
+      0= IF        \ Blocked in direction I
+        I bitclear
+      THEN
+    THEN
+  LOOP
+
+  debug 2 AND IF
+    debug-enter  ." bitmap: " DUP .  debug-leave
+  THEN
+
+  \ Optimization: if bitmap is a power of two (only one bit is
+  \ set), return the corresponding direction right away.
+  only-one-dir? IF   \ S: revflg\self\bitmap\new-dir
+    NIP NIP NIP EXIT
+  THEN
+
+  \ If we are inside of the ghosts' pen and the current
+  \ direction remains open, ignore revflg and stick to that.
+  OVER in-ghosts-pen? IF \ S: revflg\self\bitmap
+    OVER e.cdir C@       \ S: revflg\self\bitmap\cdir
+    2DUP bitset? IF      \ S: revflg\self\bitmap\cdir
+      NIP NIP NIP EXIT
+    ELSE
+      DROP
+    THEN
+  THEN                   \ S: revflg\self\bitmap
+
+  ROT IF                 \ Direction reversal is requested
+    DROP e.cdir C@       \ S: cdir
+      2 + 3 AND          \ S: opposite(cdir)
+    EXIT
+  THEN                   \ S: self\bitmap
+
+  gm_cur case!
+  mode_fright  case? IF _ghost.dirselect-fright  EXIT THEN
+  mode_scatter case? IF _ghost.dirselect-scatter EXIT THEN
+  mode_chase   case? IF _ghost.dirselect-chase   EXIT THEN
+
+  S" _ghost.dirselect: unsupported ghost mode"
     crash-and-burn ;
 
 \ From the "pacman dossier:"
@@ -1741,10 +1776,8 @@ END-STRUCTURE
 \
 \ Deciphering the gospel:
 \ - previous direction needs to be maintained for ghosts.
-\ - 'reversing direction' may not be possible by the time
-\   pacman acquires a power pellet--i.e. ghosts become
-\   frightened. All we might be able to do by then is to select
-\   opposite(cdir) or pdir as the intended direction (a hint).
+\   XXX this is highly dubious!
+\ - 'reversing direction' means selecting opposite(cdir).
 \
 \ The direction returned is guaranteed to be adopted by the
 \ caller. If is is different from 'cdir', latch it to 'pdir'
@@ -2083,15 +2116,6 @@ DROP                         \ Last defined entity
 \ Ghost mode logic is time based but there's more to it than
 \ just time. When PM becomes "supercharged" the ghosts
 \ transition to the frightened state for some time.
-
-0 CONSTANT mode_scatter
-1 CONSTANT mode_chase \ Each ghost may defines its own policy!
-2 CONSTANT mode_fright
-3 CONSTANT mode_unspec
-
-\ Those are global variables (in disguise).
-mode_scatter VALUE gm_cur \ Current mode
-mode_unspec  VALUE gm_prv \ Previous mode
 
 IFGF 2VARIABLE utime0
 
