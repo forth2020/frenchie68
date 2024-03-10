@@ -61,33 +61,6 @@ VARIABLE _case
 %00 CONSTANT debug
 
 \ -------------------------------------------------------------
-\ Euclidian distance calculation support code.
-
-\ <= is non-standard!!!
-\ However GNU Forth, SwiftForth, VFX and Z79Forth support it.
-\ : <= ( a b -- flag )
-\   2DUP < ROT ROT = OR ;
-
-\ Integer square root calculation. See wikipedia.org,
-\ article "integer_square_root" (binary search).
-\ Note: this will not converge for negative values of y!!!
-: isqrt ( y -- x )
-  >R
-  0 R@ 1+           \ S: L\R
-  BEGIN
-    2DUP 1- <>
-  WHILE             \ S: L\R
-    2DUP + 1 RSHIFT \ S: L\R\M
-    DUP DUP *       \ S: L\R\M\M^2
-    R@ <= IF        \ S: L\R\M
-      ROT DROP SWAP \ S: M\R
-    ELSE
-      NIP           \ S: L\M
-    THEN
-  REPEAT
-  DROP R> DROP ;
-
-\ -------------------------------------------------------------
 \ Pseudo-random number generator.
 \ Using John Metcalf's Xorshift LFSRs PRNG.
 \ http://www.retroprogramming.com/2017/07/
@@ -127,7 +100,8 @@ FALSE CONSTANT silent
 120 1+ CONSTANT super-clkcycles
 
 \ 9600 bps: interactivity is lost if we go below 130 MS
-170 CONSTANT clkperiod \ Expressed in milliseconds
+IFGF 170 CONSTANT clkperiod \ Expressed in milliseconds
+IFZ7 120 CONSTANT clkperiod \ Expressed in milliseconds
 
 \ The entity vector.
 4 CONSTANT #ghosts
@@ -1701,8 +1675,46 @@ END-STRUCTURE
   S" _ghost.dirselect-fright: no viable direction found"
     crash-and-burn ;
 
+\ For every bit set in bitmap, we need to eveluate the
+\ Euclidian distance between the potential next location and
+\ the ghost home corner. Finally we return the direction that
+\ minimizes the distance.
+\ Note: U> is Core Ext, so I'm using it.
 : _ghost.dirselect-scatter ( self bitmap -- new-dir )
-  _ghost.dirselect-fright ;
+  0 65535                \ S: self\bitmap\minoff\minval
+  dir_right 1+ dir_up DO
+    2 PICK I bitset? IF  \ Direction I is an option
+      3 PICK e.pcol# C@ >grid-space
+      \ S: self\bitmap\minoff\minval\pc-cur-gs
+      4 PICK e.vrow# C@ >grid-space
+      \ S: self\bitmap\minoff\minval\pc-cur-gs\vr-cur-gs
+
+      I case!
+      dir_left  case? IF SWAP 1- SWAP THEN
+      dir_right case? IF SWAP 1+ SWAP THEN
+      dir_up    case? IF 1- THEN
+      dir_down  case? IF 1+ THEN
+
+      \ S: self\bitmap\minoff\minval\pc-next-gs\vr-next-gs
+      5 PICK e.hcvr# C@ >grid-space - DUP *
+      \ S: self\bitmap\minoff\minval\pc-next-gs\dy2
+      SWAP 5 PICK e.hcpc# C@ >grid-space - DUP *
+      \ S: self\bitmap\minoff\minval\dy2\dx2
+      +                  \ We compare the squared distance
+    ELSE
+      65535              \ uint16 max
+    THEN
+    \ S: self\bitmap\minoff\minval\minval-new
+
+    2DUP U> IF
+      NIP                \ S: self\bitmap\minoff\minval-new
+      NIP I SWAP         \ S: self\bitmap\I\minval-new
+    ELSE
+      DROP
+    THEN
+  LOOP                   \ S: self\bitmap\minoff\minval
+
+  DROP NIP NIP ;
 
 : _ghost.dirselect-chase ( self bitmap -- new-dir )
   _ghost.dirselect-fright ;
@@ -2095,19 +2107,19 @@ entvec
   $FF $FF 34 32 dir_right pacman
   OVER ! CELL+
 
-  entity.new blinky
+  entity.new blinky          \ Red, default design
   4 60 14 32 dir_left blinky \ North central ghost
   OVER ! CELL+
 
-  entity.new inky
-  40 60 20 30 dir_down inky  \ Western ghost
+  entity.new inky            \ Cyan, nosy
+  40 62 20 30 dir_down inky  \ Western ghost
   OVER ! CELL+
 
-  entity.new pinky
+  entity.new pinky           \ Pink, frowning
   4 2 20 32 dir_up pinky     \ Central ghost
   OVER ! CELL+
 
-  entity.new clyde
+  entity.new clyde           \ Orange, smiling
   40 2 20 34 dir_left clyde  \ Eastern ghost
   OVER ! CELL+
 DROP                         \ Last defined entity
@@ -2156,6 +2168,12 @@ CREATE gm_sched
 
 \ Called after a context change (sequence number or game level)
 : gm-getnext ( -- mode )
+\ Debugging code begins.
+\ FALSE TO gm_timer_en
+\ mode_scatter
+\ EXIT
+\ Debugging code ends.
+
   gamlev 2@ D>S gm_seqno gm_timer-initval-get
   DUP -1 <> DUP TO gm_timer_en IF
     gm_timer !
