@@ -1656,7 +1656,7 @@ END-STRUCTURE
   FALSE ;
 
 \ The following implements the frightened ghost mode.
-: _ghost.dirselect-fright ( self bitmap -- new-dir )
+: ghost.dirselect-fright ( self bitmap -- new-dir )
   NIP                    \ S: bitmap
   dir_right 1+ dir_up DO
     DUP 1 AND            \ S: bitmap\bit0(bitmap)
@@ -1672,33 +1672,33 @@ END-STRUCTURE
     THEN
   LOOP
 
-  S" _ghost.dirselect-fright: no viable direction found"
+  S" ghost.dirselect-fright: no viable direction found"
     crash-and-burn ;
 
-\ For every bit set in bitmap, we need to eveluate the
+\ For every bit set in bitmap, we need to evaluate the
 \ Euclidian distance between the potential next location and
 \ the ghost home corner. Finally we return the direction that
 \ minimizes the distance.
 \ Note: U> is Core Ext, so I'm using it.
-: _ghost.dirselect-scatter ( self bitmap -- new-dir )
+: ghost.dirselect-scatter ( self bitmap -- new-dir )
   0 65535                \ S: self\bitmap\minoff\minval
   dir_right 1+ dir_up DO
     2 PICK I bitset? IF  \ Direction I is an option
-      3 PICK e.pcol# C@ >grid-space
-      \ S: self\bitmap\minoff\minval\pc-cur-gs
-      4 PICK e.vrow# C@ >grid-space
-      \ S: self\bitmap\minoff\minval\pc-cur-gs\vr-cur-gs
+      3 PICK e.pcol# C@
+      \ S: self\bitmap\minoff\minval\pc-cur
+      4 PICK e.vrow# C@
+      \ S: self\bitmap\minoff\minval\pc-cur\vr-cur
 
       I case!
       dir_left  case? IF SWAP 1- SWAP THEN
       dir_right case? IF SWAP 1+ SWAP THEN
       dir_up    case? IF 1- THEN
       dir_down  case? IF 1+ THEN
+      \ S: self\bitmap\minoff\minval\pc-next\vr-next
 
-      \ S: self\bitmap\minoff\minval\pc-next-gs\vr-next-gs
-      5 PICK e.hcvr# C@ >grid-space - DUP *
-      \ S: self\bitmap\minoff\minval\pc-next-gs\dy2
-      SWAP 5 PICK e.hcpc# C@ >grid-space - DUP *
+      5 PICK e.hcvr# C@ - DUP *
+      \ S: self\bitmap\minoff\minval\pc-next\dy2
+      SWAP 5 PICK e.hcpc# C@ - DUP *
       \ S: self\bitmap\minoff\minval\dy2\dx2
       +                  \ We compare the squared distance
     ELSE
@@ -1716,11 +1716,22 @@ END-STRUCTURE
 
   DROP NIP NIP ;
 
-: _ghost.dirselect-chase ( self bitmap -- new-dir )
-  _ghost.dirselect-fright ;
+: ghost.dirselect-chase ( self bitmap -- new-dir )
+  ghost.dirselect-fright ;
 
-\ See notes below about ghost.dirselect.
-: _ghost.dirselect ( self -- new-dir )
+\ From the "pacman dossier:"
+\ "Ghosts are forced to reverse direction by the system anytime
+\ the mode changes from: chase-to-scatter, chase-to-frightened,
+\ scatter-to-chase, and scatter-to-frightened. Ghosts do not
+\ reverse direction when changing back from frightened to chase
+\ or scatter modes."
+\
+\ Interpreting the gospel:
+\ - 'reversing direction' means selecting opposite(cdir).
+\
+\ The direction returned is guaranteed to be adopted by the
+\ caller.
+: ghost.dirselect ( self -- new-dir )
   \ No direction changes unless both vrow# and pcol# are even.
   DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
   DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
@@ -1772,37 +1783,12 @@ END-STRUCTURE
   THEN                   \ S: self\bitmap
 
   gm_cur case!
-  mode_fright  case? IF _ghost.dirselect-fright  EXIT THEN
-  mode_scatter case? IF _ghost.dirselect-scatter EXIT THEN
-  mode_chase   case? IF _ghost.dirselect-chase   EXIT THEN
+  mode_fright  case? IF ghost.dirselect-fright  EXIT THEN
+  mode_scatter case? IF ghost.dirselect-scatter EXIT THEN
+  mode_chase   case? IF ghost.dirselect-chase   EXIT THEN
 
-  S" _ghost.dirselect: unsupported ghost mode"
+  S" ghost.dirselect: unsupported ghost mode"
     crash-and-burn ;
-
-\ From the "pacman dossier:"
-\ "Ghosts are forced to reverse direction by the system anytime
-\ the mode changes from: chase-to-scatter, chase-to-frightened,
-\ scatter-to-chase, and scatter-to-frightened. Ghosts do not
-\ reverse direction when changing back from frightened to chase
-\ or scatter modes."
-\
-\ Deciphering the gospel:
-\ - previous direction needs to be maintained for ghosts.
-\   XXX this is highly dubious!
-\ - 'reversing direction' means selecting opposite(cdir).
-\
-\ The direction returned is guaranteed to be adopted by the
-\ caller. If is is different from 'cdir', latch it to 'pdir'
-
-: ghost.dirselect ( self -- new-dir )
-  >R
-  R@ e.cdir C@         \ S: cdir, R: self
-  R@ _ghost.dirselect  \ S: cdir\new-dir
-  2DUP <> IF         \ Direction changed, S: cdir\new-dir
-    DUP R@ e.pdir C! \ 'pdir' <- 'new-dir'. S: cdir\new-dir
-  THEN
-  NIP
-  R> DROP ;
 
 \ Re-display an erasable that was at least partially
 \ obscured by a ghost passing by.
