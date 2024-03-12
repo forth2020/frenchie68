@@ -1679,7 +1679,7 @@ END-STRUCTURE
 \ Euclidian distance between the potential next location and
 \ the ghost home corner. Finally we return the direction that
 \ minimizes the distance.
-\ Note: U> is Core Ext, so I'm using it.
+\ Note: U> is ANS94 'Core Ext', so I'm using it.
 : ghost.dirselect-scatter ( self bitmap -- new-dir )
   0 65535                \ S: self\bitmap\minoff\minval
   dir_right 1+ dir_up DO
@@ -1696,6 +1696,7 @@ END-STRUCTURE
       dir_down  case? IF 1+ THEN
       \ S: self\bitmap\minoff\minval\pc-next\vr-next
 
+      \ Selected target is at [e.hcvr#, e.hcpc#].
       5 PICK e.hcvr# C@ - DUP *
       \ S: self\bitmap\minoff\minval\pc-next\dy2
       SWAP 5 PICK e.hcpc# C@ - DUP *
@@ -1736,7 +1737,7 @@ END-STRUCTURE
   DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
   DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
 
-  %1111            \ The sum of a priori alternatives
+  %1111              \ The sum of 'a priori' alternatives
   OVER e.revflg C@ DUP >R IF
     OVER e.revflg 0 SWAP C!
   ELSE
@@ -1747,9 +1748,9 @@ END-STRUCTURE
   R> -ROT            \ S: revflg\self\bitmap
 
   dir_right 1+ dir_up DO
-    DUP I bitset? IF \ Direction I is a priori viable
+    DUP I bitset? IF \ Direction I is 'a priori' viable
       OVER I can-move-in-dir? \ Check for a possible obstacle
-      0= IF        \ Blocked in direction I
+      0= IF          \ Blocked in direction I
         I bitclear
       THEN
     THEN
@@ -1825,7 +1826,7 @@ END-STRUCTURE
   dir_up      case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1- THEN
   dir_down    case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1+ THEN
 
-  \ The following applies only to pacman (not enforced).
+  \ The following applies only to PM (not enforced).
   dir_blocked case? IF R@ e.pcol# C@    R@ e.vrow# C@    THEN
   R> DROP ;
 
