@@ -1366,7 +1366,7 @@ END-STRUCTURE
 1 CONSTANT dir_left
 2 CONSTANT dir_down
 3 CONSTANT dir_right
-4 CONSTANT dir_blocked
+4 CONSTANT dir_blocked \ Must be 1 + dir_right
 5 CONSTANT dir_unspec \ Invalid except for idir (pacman)
 6 CONSTANT dir_quit \ Invalid except as retval/pacman.dirselect
 
@@ -1658,7 +1658,7 @@ END-STRUCTURE
 \ The following implements the frightened ghost mode.
 : ghost.dirselect-fright ( self bitmap -- new-dir )
   NIP                    \ S: bitmap
-  dir_right 1+ dir_up DO
+  dir_blocked dir_up DO
     DUP 1 AND            \ S: bitmap\bit0(bitmap)
     SWAP 1 RSHIFT SWAP   \ S: bitmap>>1\bit0(bitmap)
     IF                   \ bit0(bitmap) is set; S: bitmap>>1
@@ -1682,7 +1682,7 @@ END-STRUCTURE
 \ Note: U> is ANS94 'Core Ext', so I'm using it.
 : ghost.dirselect-scatter ( self bitmap -- new-dir )
   0 65535                \ S: self\bitmap\minoff\minval
-  dir_right 1+ dir_up DO
+  dir_blocked dir_up DO
     2 PICK I bitset? IF  \ Direction I is an option
       3 PICK e.pcol# C@
       \ S: self\bitmap\minoff\minval\pc-cur
@@ -1747,7 +1747,7 @@ END-STRUCTURE
   THEN               \ S: self\bitmap
   R> -ROT            \ S: revflg\self\bitmap
 
-  dir_right 1+ dir_up DO
+  dir_blocked dir_up DO
     DUP I bitset? IF \ Direction I is 'a priori' viable
       OVER I can-move-in-dir? \ Check for a possible obstacle
       0= IF          \ Blocked in direction I
