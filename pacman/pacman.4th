@@ -1719,7 +1719,7 @@ END-STRUCTURE
 
   DROP NIP NIP NIP NIP ;
 
-\ In scatter mode, simply navigate the the ghost home corner.
+\ In scatter mode, simply navigate to the ghost home corner.
 : ghost.dirselect-scatter ( self bitmap -- new-dir )
   OVER e.hcvr# C@ 2 PICK e.hcpc# C@
     ghost.dirselect-nav2target ;
@@ -1752,20 +1752,20 @@ END-STRUCTURE
   DUP e.vrow# C@ 1 AND IF e.cdir C@ EXIT THEN
   DUP e.pcol# C@ 1 AND IF e.cdir C@ EXIT THEN
 
-  %1111              \ The sum of 'a priori' alternatives
+  %1111                  \ The sum of 'a priori' alternatives
   OVER e.revflg C@ DUP >R IF
     OVER e.revflg 0 SWAP C!
   ELSE
     OVER e.cdir C@
       2 + 3 AND
-      bitclear       \ Exclude opposite(cdir)
-  THEN               \ S: self\bitmap
-  R> -ROT            \ S: revflg\self\bitmap
+      bitclear           \ Exclude opposite(cdir)
+  THEN                   \ S: self\bitmap
+  R> -ROT                \ S: revflg\self\bitmap
 
   dir_blocked dir_up DO
-    DUP I bitset? IF \ Direction I is 'a priori' viable
+    DUP I bitset? IF     \ Direction I is 'a priori' viable
       OVER I can-move-in-dir? \ Check for a possible obstacle
-      0= IF          \ Blocked in direction I
+      0= IF              \ Blocked in direction I
         I bitclear
       THEN
     THEN
@@ -1773,12 +1773,6 @@ END-STRUCTURE
 
   debug 2 AND IF
     debug-enter  ." bitmap: " DUP .  debug-leave
-  THEN
-
-  \ Optimization: if bitmap is a power of two (only one bit is
-  \ set), return the corresponding direction right away.
-  only-one-dir? IF   \ S: revflg\self\bitmap\new-dir
-    NIP NIP NIP EXIT
   THEN
 
   \ If we are inside of the ghosts' pen and the current
@@ -1798,6 +1792,12 @@ END-STRUCTURE
     EXIT
   THEN                   \ S: self\bitmap
 
+  \ Optimization: if bitmap is a power of two--only one
+  \ direction is viable--return this direction immediately.
+  only-one-dir? IF       \ S: self\bitmap\new-dir
+    NIP NIP EXIT
+  THEN
+
   gm_cur case!
   mode_fright  case? IF ghost.dirselect-fright  EXIT THEN
   mode_scatter case? IF ghost.dirselect-scatter EXIT THEN
@@ -1806,8 +1806,8 @@ END-STRUCTURE
   S" ghost.dirselect: unsupported ghost mode"
     crash-and-burn ;
 
-\ Re-display an erasable that was at least partially
-\ obscured by a ghost passing by.
+\ Re-display an erasable that was at least partially obscured
+\ by a ghost passing by.
 : .interfering ( self -- )
   >R
   R@ e.igchr C@ IF
