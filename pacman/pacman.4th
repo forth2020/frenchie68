@@ -1677,11 +1677,13 @@ END-STRUCTURE
 
 \ For every bit set in bitmap, we need to evaluate the
 \ Euclidian distance between the potential next location and
-\ the ghost home corner. Finally we return the direction that
+\ the target tile. Finally we return the direction that
 \ minimizes the distance.
 \ Note: U> is ANS94 'Core Ext', so I'm using it.
-: ghost.dirselect-scatter ( self bitmap -- new-dir )
-  0 65535                \ S: self\bitmap\minoff\minval
+: ghost.dirselect-nav2target ( self bitmap tvr tpc )
+  ( -- new-dir )
+  3 ROLL 3 ROLL          \ S: tvr\tpc\self\bitmap
+  0 65535                \ S: tvr\tpc\self\bitmap\minoff\minval
   dir_blocked dir_up DO
     2 PICK I bitset? IF  \ Direction I is an option
       3 PICK e.pcol# C@
@@ -1694,30 +1696,43 @@ END-STRUCTURE
       dir_right case? IF SWAP 1+ SWAP THEN
       dir_up    case? IF 1- THEN
       dir_down  case? IF 1+ THEN
-      \ S: self\bitmap\minoff\minval\pc-next\vr-next
+      \ S: tvr\tpc\self\bitmap\minoff\minval\pc-next\vr-next
 
-      \ Selected target is at [e.hcvr#, e.hcpc#].
-      5 PICK e.hcvr# C@ - DUP *
-      \ S: self\bitmap\minoff\minval\pc-next\dy2
-      SWAP 5 PICK e.hcpc# C@ - DUP *
+      \ Selected target is at [tvr, tpc].
+      7 PICK - DUP *
+      \ S: tvr\tpc\self\bitmap\minoff\minval\pc-next\dy2
+      SWAP 6 PICK - DUP *
       \ S: self\bitmap\minoff\minval\dy2\dx2
       +                  \ We compare the squared distance
     ELSE
       65535              \ uint16 max
     THEN
-    \ S: self\bitmap\minoff\minval\minval-new
+    \ S: tvr\tpc\self\bitmap\minoff\minval\minval-new
 
     2DUP U> IF
-      NIP                \ S: self\bitmap\minoff\minval-new
-      NIP I SWAP         \ S: self\bitmap\I\minval-new
+      NIP            \ S: tvr\tpc\self\bitmap\minoff\minval-new
+      NIP I SWAP         \ S: tvr\tpc\self\bitmap\I\minval-new
     ELSE
       DROP
     THEN
-  LOOP                   \ S: self\bitmap\minoff\minval
+  LOOP                   \ S: tvr\tpc\self\bitmap\minoff\minval
 
-  DROP NIP NIP ;
+  DROP NIP NIP NIP NIP ;
+
+\ In scatter mode, simply navigate the the ghost home corner.
+: ghost.dirselect-scatter ( self bitmap -- new-dir )
+  OVER e.hcvr# C@ 2 PICK e.hcpc# C@
+    ghost.dirselect-nav2target ;
 
 : ghost.dirselect-chase ( self bitmap -- new-dir )
+  OVER e.inum C@ 1 = IF  \ Blinky is ONPROC
+    \ The target is PM's current tile.
+    pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
+      ghost.dirselect-nav2target
+    EXIT
+  THEN
+
+  \ Default for now...
   ghost.dirselect-fright ;
 
 \ From the "pacman dossier:"
@@ -2157,7 +2172,7 @@ CREATE gm_sched
 : gm-getnext ( -- mode )
 \ Debugging code begins.
 \ FALSE TO gm_timer_en
-\ mode_scatter
+\ mode_chase
 \ EXIT
 \ Debugging code ends.
 
