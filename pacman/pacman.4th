@@ -1725,8 +1725,7 @@ END-STRUCTURE
     ghost.dirselect-nav2target ;
 
 : ghost.dirselect-chase ( self bitmap -- new-dir )
-  \ Blinky handling.
-  OVER e.inum C@ 1 = IF
+  OVER e.inum C@ 1 = IF   \ Blinky handling.
     \ The target is PM's current location.
     pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
       ghost.dirselect-nav2target
@@ -1734,16 +1733,16 @@ END-STRUCTURE
   THEN
 
   \ Pinky handling. The target is 8 half tiles in PM's
-  \ currently moving direction. It might be off the grid but
+  \ current direction. It might be off the grid but
   \ that does not matter in the least.
   OVER e.inum C@ 2 = IF
     pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
 
     pacman-addr e.cdir C@ case!
-      dir_left  case? IF SWAP 8 - SWAP THEN
-      dir_right case? IF SWAP 8 + SWAP THEN
-      dir_up    case? IF 8 - THEN
-      dir_down  case? IF 8 + THEN
+    dir_left  case? IF 8 - THEN
+    dir_right case? IF 8 + THEN
+    dir_up    case? IF SWAP 8 - SWAP THEN
+    dir_down  case? IF SWAP 8 + SWAP THEN
 
     ghost.dirselect-nav2target
     EXIT
@@ -1842,7 +1841,7 @@ END-STRUCTURE
   R> DROP ;
 
 \ Utility routine--not a method.
-: entity.get-new-coordinates ( self -- pcol-new\vrow-new )
+: entity.get-new-coordinates ( self -- pcol\vrow )
   >R
 
   \ Handling a resurrecting/grounded ghost
@@ -1853,15 +1852,13 @@ END-STRUCTURE
   THEN
 
   R@ e.cdir C@ case!
-  \ TODO: the following needs to be re-written in the same
-  \ spirit as the code from ghost.dirselect-nav2target.
-  dir_left    case? IF R@ e.pcol# C@ 1- R@ e.vrow# C@    THEN
-  dir_right   case? IF R@ e.pcol# C@ 1+ R@ e.vrow# C@    THEN
-  dir_up      case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1- THEN
-  dir_down    case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1+ THEN
+  R@ e.pcol# C@ R@ e.vrow# C@
+  dir_left    case? IF SWAP 1- SWAP THEN
+  dir_right   case? IF SWAP 1+ SWAP THEN
+  dir_up      case? IF 1- THEN
+  dir_down    case? IF 1+ THEN
+  \ dir_blocked (PM only): fall through.
 
-  \ The following applies only to PM (not enforced).
-  dir_blocked case? IF R@ e.pcol# C@    R@ e.vrow# C@    THEN
   R> DROP ;
 
 \ Utility routine--not a method.
@@ -2128,19 +2125,19 @@ entvec
   $FF $FF 34 32 dir_right pacman
   OVER ! CELL+
 
-  entity.new blinky          \ Red, default design
+  entity.new blinky          \ Entity #1, Red, default design
   4 60 14 32 dir_left blinky \ North central ghost
   OVER ! CELL+
 
-  entity.new pinky           \ Pink, frowning
+  entity.new pinky           \ Entity #2, Pink, frowning
   4 2 20 32 dir_up pinky     \ Central ghost
   OVER ! CELL+
 
-  entity.new inky            \ Cyan, nosy
+  entity.new inky            \ Entity #3, Cyan, nosy
   40 62 20 30 dir_down inky  \ Western ghost
   OVER ! CELL+
 
-  entity.new clyde           \ Orange, smiling
+  entity.new clyde           \ Entity #4, Orange, smiling
   40 2 20 34 dir_left clyde  \ Eastern ghost
   OVER ! CELL+
 DROP                         \ Last defined entity
