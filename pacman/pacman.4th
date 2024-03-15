@@ -1725,10 +1725,27 @@ END-STRUCTURE
     ghost.dirselect-nav2target ;
 
 : ghost.dirselect-chase ( self bitmap -- new-dir )
-  OVER e.inum C@ 1 = IF  \ Blinky is ONPROC
-    \ The target is PM's current tile.
+  \ Blinky handling.
+  OVER e.inum C@ 1 = IF
+    \ The target is PM's current location.
     pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
       ghost.dirselect-nav2target
+    EXIT
+  THEN
+
+  \ Pinky handling. The target is 8 half tiles in PM's
+  \ currently moving direction. It might be off the grid but
+  \ that does not matter in the least.
+  OVER e.inum C@ 2 = IF
+    pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
+
+    pacman-addr e.cdir C@ case!
+      dir_left  case? IF SWAP 8 - SWAP THEN
+      dir_right case? IF SWAP 8 + SWAP THEN
+      dir_up    case? IF 8 - THEN
+      dir_down  case? IF 8 + THEN
+
+    ghost.dirselect-nav2target
     EXIT
   THEN
 
@@ -1836,6 +1853,8 @@ END-STRUCTURE
   THEN
 
   R@ e.cdir C@ case!
+  \ TODO: the following needs to be re-written in the same
+  \ spirit as the code from ghost.dirselect-nav2target.
   dir_left    case? IF R@ e.pcol# C@ 1- R@ e.vrow# C@    THEN
   dir_right   case? IF R@ e.pcol# C@ 1+ R@ e.vrow# C@    THEN
   dir_up      case? IF R@ e.pcol# C@    R@ e.vrow# C@ 1- THEN
@@ -2113,12 +2132,12 @@ entvec
   4 60 14 32 dir_left blinky \ North central ghost
   OVER ! CELL+
 
-  entity.new inky            \ Cyan, nosy
-  40 62 20 30 dir_down inky  \ Western ghost
-  OVER ! CELL+
-
   entity.new pinky           \ Pink, frowning
   4 2 20 32 dir_up pinky     \ Central ghost
+  OVER ! CELL+
+
+  entity.new inky            \ Cyan, nosy
+  40 62 20 30 dir_down inky  \ Western ghost
   OVER ! CELL+
 
   entity.new clyde           \ Orange, smiling
