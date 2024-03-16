@@ -96,7 +96,7 @@ VARIABLE remitems# 0 remitems# !
 \ Disable BELL if TRUE
 FALSE CONSTANT silent
 
-\ A clock cycle count during which pacman stays "supercharged."
+\ A clock cycle count during which PM stays "supercharged."
 120 1+ CONSTANT super-clkcycles
 
 \ 9600 bps: interactivity is lost if we go below 130 MS
@@ -114,7 +114,7 @@ DEFER super-enter
 DEFER super-leave
 
 \ This does not belong here and yet VALUE references cannot
-\ be DEFERred in a portable way. So it goes...
+\ be DEFERred in a universally portable way. So it goes...
 0 CONSTANT mode_scatter
 1 CONSTANT mode_chase \ Each ghost may defines its own policy!
 2 CONSTANT mode_fright
@@ -1700,9 +1700,9 @@ END-STRUCTURE
 
       \ Selected target is at [tvr, tpc].
       7 PICK - DUP *
-      \ S: tvr\tpc\self\bitmap\minoff\minval\pc-next\dy2
+      \ S: tvr\tpc\self\bitmap\minoff\minval\pc-next\dy^2
       SWAP 6 PICK - DUP *
-      \ S: self\bitmap\minoff\minval\dy2\dx2
+      \ S: self\bitmap\minoff\minval\dy^2\dx^2
       +                  \ We compare the squared distance
     ELSE
       65535              \ uint16 max
@@ -1725,11 +1725,10 @@ END-STRUCTURE
     ghost.dirselect-nav2target ;
 
 : ghost.dirselect-chase ( self bitmap -- new-dir )
-  OVER e.inum C@ 1 = IF   \ Blinky handling.
-    \ The target is PM's current location.
+  \ Blinky handling. The target is PM's current location.
+  OVER e.inum C@ 1 = IF
     pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
-      ghost.dirselect-nav2target
-    EXIT
+      ghost.dirselect-nav2target EXIT
   THEN
 
   \ Pinky handling. The target is 8 half tiles in PM's
@@ -1744,11 +1743,34 @@ END-STRUCTURE
     dir_up    case? IF SWAP 8 - SWAP THEN
     dir_down  case? IF SWAP 8 + SWAP THEN
 
-    ghost.dirselect-nav2target
-    EXIT
+    ghost.dirselect-nav2target EXIT
   THEN
 
-  \ Default for now...
+  \ Inky handling. The target is at the end of a vector twice
+  \ as long as the one originating from Blinky to PM's moving
+  \ direction extrapolated by 4 half tiles.
+  OVER e.inum C@ 3 = IF
+    pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
+
+    pacman-addr e.cdir C@ case!
+    dir_left  case? IF 4 - THEN
+    dir_right case? IF 4 + THEN
+    dir_up    case? IF SWAP 4 - SWAP THEN
+    dir_down  case? IF SWAP 4 + SWAP THEN
+
+    entvec CELL+ @ DUP \ S: pmvr+\pmpc+\blinky-addr\blinky-addr
+    e.pcol# C@ ROT - 2* \ S: pmvr+\blinky-addr\dx*2
+    SWAP                \ S: pmvr+\dx*2\blinky-addr
+    e.vrow# C@ ROT - 2* \ S: dx*2\dy*2
+
+    \ The relative displacement refers to Blinky's current pos.
+    entvec CELL+ @ DUP e.pcol# C@ SWAP e.vrow# C@ SWAP
+    D+         \ TODO: this might be a questionable shortcut!!!
+    ghost.dirselect-nav2target EXIT
+  THEN
+
+  \ Default for now. Will only apply to Clyde--permanently
+  \ frightened...
   ghost.dirselect-fright ;
 
 \ From the "pacman dossier:"
