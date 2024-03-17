@@ -1728,11 +1728,11 @@ END-STRUCTURE
   \ Blinky handling. The target is PM's current location.
   OVER e.inum C@ 1 = IF
     pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
-      ghost.dirselect-nav2target EXIT
+    ghost.dirselect-nav2target EXIT
   THEN
 
   \ Pinky handling. The target is 8 half tiles in PM's
-  \ current direction. It might be off the grid but
+  \ current moving direction. It might be off the grid but
   \ that does not matter in the least.
   OVER e.inum C@ 2 = IF
     pacman-addr e.vrow# C@ pacman-addr e.pcol# C@
@@ -1769,8 +1769,8 @@ END-STRUCTURE
     ghost.dirselect-nav2target EXIT
   THEN
 
-  \ Default for now. Will only apply to Clyde--permanently
-  \ frightened...
+  \ Default policy. Will only apply to Clyde--permanently
+  \ frightened in chase mode.
   ghost.dirselect-fright ;
 
 \ From the "pacman dossier:"
@@ -1863,7 +1863,7 @@ END-STRUCTURE
   R> DROP ;
 
 \ Utility routine--not a method.
-: entity.get-new-coordinates ( self -- pcol\vrow )
+: entity.get-new-coordinates ( self -- pcol vrow )
   >R
 
   \ Handling a resurrecting/grounded ghost
