@@ -1527,7 +1527,6 @@ END-STRUCTURE
   0 fright_timer !           \ PM no longer "supercharged"
   0 pacman-addr e.reward C!  \ Reset the 'reward' field
 
-  \ XXX Should this be considered a generic aspect of dying?
   pacman-addr entity.reset-coords-and-dir ;
 
 \ Debugging support.
@@ -1765,7 +1764,7 @@ END-STRUCTURE
 
     \ The relative displacement refers to Blinky's current pos.
     entvec CELL+ @ DUP e.pcol# C@ SWAP e.vrow# C@ SWAP
-    D+         \ TODO: this might be a questionable shortcut!!!
+    D+                  \ Two birds with the same stone
     ghost.dirselect-nav2target EXIT
   THEN
 
