@@ -170,13 +170,12 @@ $1B CONSTANT esc
 10 CONSTANT pcmw  \ Character width is 10 pixels in 80 col mode
 0  CONSTANT pss   \ 80 columns, 24 lines
 2  CONSTANT pt    \ Full cell
-16 CONSTANT pcmh  \ Character height is 16: 6/6/4 in sixels
+20 CONSTANT pcmh  \ Character height is 16: 6/6/6/2 in sixels
 0  CONSTANT pcss  \ 94-charset, $20 (BL) and $7E (~) are RO
 85 CONSTANT ufn   \ User font name is 'U' (argument to DSCS)
 
-pcmh 5 + 6 / CONSTANT nsixels \ Sixels per column
-nsixels pcmw *
-  CONSTANT chrdefbcnt \ Per-char definition byte count
+pcmh 5 + 6 / CONSTANT nsixels    \ Sixels per column
+nsixels pcmw * CONSTANT chrdefbcnt \ Per-char def. byte count
 
 : dscs ( -- ) ufn EMIT ;
 : dcs ( -- ) esc EMIT $50 EMIT ; \ Define character set.
@@ -190,814 +189,814 @@ nsixels pcmw *
 CREATE softfont
 \ Character "blinky", left half at $21 (!)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%110000 C, %111111 C, %1111 C, \ Column #2
-%110000 C, %111111 C, %1111 C, \ Column #3
-%111100 C, %111111 C, %0011 C, \ Column #4
-%111100 C, %111111 C, %0011 C, \ Column #5
-%111100 C, %111100 C, %1111 C, \ Column #6
-%111100 C, %111100 C, %1111 C, \ Column #7
-%111111 C, %111111 C, %0011 C, \ Column #8
-%111111 C, %111111 C, %0011 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #6
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #9
 
 \ Character "blinky", right half at $22 (").
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %0011 C, \ Column #0
-%111111 C, %111111 C, %0011 C, \ Column #1
-%111100 C, %111100 C, %1111 C, \ Column #2
-%111100 C, %111100 C, %1111 C, \ Column #3
-%111100 C, %111111 C, %0011 C, \ Column #4
-%111100 C, %111111 C, %0011 C, \ Column #5
-%110000 C, %111111 C, %1111 C, \ Column #6
-%110000 C, %111111 C, %1111 C, \ Column #7
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #2
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "cross", left half at $23 (#).
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %001111 C, %0000 C, \ Column #3 (eff. 1)
-%000000 C, %001111 C, %0000 C, \ Column #4 (eff. 2)
-%000000 C, %001111 C, %0000 C, \ Column #5 (eff. 3)
-%000000 C, %001111 C, %0000 C, \ Column #6 (eff. 4)
-%111100 C, %111111 C, %0011 C, \ Column #7 (eff. 5)
-%111100 C, %111111 C, %0011 C, \ Column #8 (eff. 6)
-%111100 C, %111111 C, %0011 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #3
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #4
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #5
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #6
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #7
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #9
 
 \ Character "cross", right half at $24 ($).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111100 C, %111111 C, %0011 C, \ Column #0 (eff. 8)
-%111100 C, %111111 C, %0011 C, \ Column #1 (eff. 9)
-%111100 C, %111111 C, %0011 C, \ Column #2 (eff. A)
-%000000 C, %001111 C, %0000 C, \ Column #3 (eff. B)
-%000000 C, %001111 C, %0000 C, \ Column #4 (eff. C)
-%000000 C, %001111 C, %0000 C, \ Column #5 (eff. D)
-%000000 C, %001111 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #0
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #2
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #3
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #4
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #5
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Pacman going right", left half at $25 (%).
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%111100 C, %111111 C, %0011 C, \ Column #4 (eff. 2)
-%111100 C, %111111 C, %0011 C, \ Column #5 (eff. 3)
-%111111 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%110011 C, %110000 C, %1111 C, \ Column #8 (eff. 6)
-%110011 C, %110000 C, %1111 C, \ Column #8 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #6
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #7
+%001100 C, %000011 C, %111111 C, %000000 C, \ Column #8
+%001100 C, %000011 C, %111111 C, %000000 C, \ Column #9
 
 \ Character "Pacman going right", right half at $26 (&)
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%001111 C, %000000 C, %1111 C, \ Column #0 (eff. 8)
-%001111 C, %000000 C, %1111 C, \ Column #1 (eff. 9)
-%000011 C, %000000 C, %1111 C, \ Column #2 (eff. A)
-%000011 C, %000000 C, %1111 C, \ Column #3 (eff. B)
-%000000 C, %000000 C, %0000 C, \ Column #4 (eff. C)
-%000000 C, %000000 C, %0000 C, \ Column #4 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #4 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #4 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %000000 C, %111100 C, %000000 C, \ Column #0
+%111100 C, %000000 C, %111100 C, %000000 C, \ Column #1
+%001100 C, %000000 C, %111100 C, %000000 C, \ Column #2
+%001100 C, %000000 C, %111100 C, %000000 C, \ Column #3
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #4
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Pacman (gobbling)", left half at $27 (').
 \ Left: colunm #0 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %001111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%111000 C, %111111 C, %0001 C, \ Column #4 (eff. 2)
-%111000 C, %111111 C, %0001 C, \ Column #5 (eff. 3)
-%111000 C, %111111 C, %0001 C, \ Column #6 (eff. 4)
-%111100 C, %111111 C, %0011 C, \ Column #7 (eff. 5)
-%111100 C, %111111 C, %0011 C, \ Column #8 (eff. 6)
-%111100 C, %111111 C, %0011 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #4
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #5
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #6
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #7
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #9
 
 \ Character "Pacman (gobbling)", right half at $28 (()
 \ Right: column #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111100 C, %111111 C, %0011 C, \ Column #0 (eff. 8)
-%111100 C, %111111 C, %0011 C, \ Column #1 (eff. 9)
-%111100 C, %111111 C, %0011 C, \ Column #2 (eff. A)
-%111000 C, %111111 C, %0001 C, \ Column #3 (eff. B)
-%111000 C, %111111 C, %0001 C, \ Column #4 (eff. C)
-%111000 C, %111111 C, %0001 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %001111 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #0
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #2
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #3
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #4
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111100 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Lower left corner", left half at $29 ()).
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%111111 C, %000111 C, %0000 C, \ Column #4 (eff. 2)
-%111111 C, %011111 C, %0000 C, \ Column #5 (eff. 3)
-%111111 C, %011111 C, %0000 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %0000 C, \ Column #7 (eff. 5)
-%111111 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
-%111111 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%111111 C, %011111 C, %000000 C, %000000 C, \ Column #4
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #5
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #6
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Lower left corner", right half at $2A (*).
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
-%111111 C, %111111 C, %0000 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %0000 C, \ Column #2 (eff. A)
-%111111 C, %111111 C, %0000 C, \ Column #3 (eff. B)
-%111111 C, %111111 C, %0000 C, \ Column #4 (eff. C)
-%111111 C, %111111 C, %0000 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Lower right corner", left half at $2B (+).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%111111 C, %111111 C, %0000 C, \ Column #4 (eff. 2)
-%111111 C, %111111 C, %0000 C, \ Column #5 (eff. 3)
-%111111 C, %111111 C, %0000 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %0000 C, \ Column #7 (eff. 5)
-%111111 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
-%111111 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Lower right corner", right half at $2C (,).
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
-%111111 C, %111111 C, %0000 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %0000 C, \ Column #2 (eff. A)
-%111111 C, %011111 C, %0000 C, \ Column #3 (eff. B)
-%111111 C, %011111 C, %0000 C, \ Column #4 (eff. C)
-%111111 C, %000111 C, %0000 C, \ Column #5 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #4
+%111111 C, %011111 C, %000000 C, %000000 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Horizontal bar", left half at $2D (-).
 \ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%110000 C, %111111 C, %0000 C, \ Column #4 (eff. 2)
-%110000 C, %111111 C, %0000 C, \ Column #5 (eff. 3)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. 4)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. 5)
-%110000 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
-%110000 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Horizontal bar", right half at $2E (.).
 \ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
-%110000 C, %111111 C, %0000 C, \ Column #1 (eff. 9)
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. A)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. B)
-%110000 C, %111111 C, %0000 C, \ Column #4 (eff. C)
-%110000 C, %111111 C, %0000 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Vertical bar", left half at $2F (/).
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%111111 C, %111111 C, %1111 C, \ Column #4 (eff. 2)
-%111111 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%111111 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%111111 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%111111 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #6
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "Vertical bar", right half at $30 (0).
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%111111 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%111111 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%111111 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%111111 C, %111111 C, %1111 C, \ Column #5 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #3
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Upper left corner", left half at $31 (1).
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%000000 C, %111110 C, %1111 C, \ Column #4 (eff. 2)
-%100000 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%100000 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%110000 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%110000 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%110000 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%000000 C, %111000 C, %111111 C, %000011 C, \ Column #4
+%000000 C, %111110 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %111110 C, %111111 C, %000011 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "Upper left corner", right half at $32 (2).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%110000 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%110000 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%110000 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%110000 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%110000 C, %111111 C, %1111 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #3
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Upper right corner", left half at $33 (3).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%110000 C, %111111 C, %1111 C, \ Column #4 (eff. 2)
-%110000 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%110000 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%110000 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%110000 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%110000 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "Upper right corner", right half at $34 (4).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%110000 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%110000 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%100000 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%100000 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%000000 C, %111110 C, %1111 C, \ Column #5 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%000000 C, %111110 C, %111111 C, %000011 C, \ Column #3
+%000000 C, %111110 C, %111111 C, %000011 C, \ Column #4
+%000000 C, %111000 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Power pellet", left half at $35 (5).
 \ Left: colunm #0 and unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%100000 C, %011111 C, %0000 C, \ Column #2 (eff. 0)
-%100000 C, %011111 C, %0000 C, \ Column #3 (eff. 1)
-%111100 C, %111111 C, %0011 C, \ Column #4 (eff. 2)
-%111100 C, %111111 C, %0011 C, \ Column #5 (eff. 3)
-%111100 C, %111111 C, %0011 C, \ Column #6 (eff. 4)
-%111100 C, %111111 C, %0011 C, \ Column #7 (eff. 5)
-%111100 C, %111111 C, %0011 C, \ Column #8 (eff. 6)
-%111100 C, %111111 C, %0011 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #2
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #6
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #7
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #9
 
 \ Character "Power pellet", right half at $36 (6).
 \ Right: column #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111100 C, %111111 C, %0011 C, \ Column #0 (eff. 8)
-%111100 C, %111111 C, %0011 C, \ Column #1 (eff. 9)
-%111100 C, %111111 C, %0011 C, \ Column #2 (eff. A)
-%111100 C, %111111 C, %0011 C, \ Column #3 (eff. B)
-%111100 C, %111111 C, %0011 C, \ Column #4 (eff. C)
-%111100 C, %111111 C, %0011 C, \ Column #5 (eff. D)
-%100000 C, %011111 C, %0000 C, \ Column #6 (eff. E)
-%100000 C, %011111 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #0
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #2
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #6
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "T down", left half at $37 (7).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0001 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0011 C, \ Column #3 (eff. 1)
-%110000 C, %111111 C, %1111 C, \ Column #4 (eff. 2)
-%110000 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%110000 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%110000 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%110000 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%110000 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000111 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %001111 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "T down", right half at $38 (8).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%110000 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%110000 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%110000 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%110000 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%110000 C, %111111 C, %1111 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0011 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0001 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #3
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%000000 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %111111 C, %001111 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000111 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "T up", left half at $39 (9).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%111000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%111100 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%111111 C, %111111 C, %0000 C, \ Column #4 (eff. 2)
-%111111 C, %111111 C, %0000 C, \ Column #5 (eff. 3)
-%111111 C, %111111 C, %0000 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %0000 C, \ Column #7 (eff. 5)
-%111111 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
-%111111 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%100000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%110000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "T up", right half at $3A (:).
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
-%111111 C, %111111 C, %0000 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %0000 C, \ Column #2 (eff. A)
-%111111 C, %111111 C, %0000 C, \ Column #3 (eff. B)
-%111111 C, %111111 C, %0000 C, \ Column #4 (eff. C)
-%111111 C, %111111 C, %0000 C, \ Column #5 (eff. D)
-%111100 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%111000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%111111 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%110000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%100000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "T right", left half at $3B (;).
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%111111 C, %111111 C, %1111 C, \ Column #4 (eff. 2)
-%111111 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%111111 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%111111 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%111111 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #6
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "T right", right half at $3C (<).
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%111111 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%111111 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%111111 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%111111 C, %111111 C, %1111 C, \ Column #5 (eff. D)
-%111100 C, %111111 C, %0011 C, \ Column #6 (eff. E)
-%111000 C, %111111 C, %0001 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #3
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #6
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "T left", left half at $3D (=).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%111000 C, %111111 C, %0001 C, \ Column #2 (eff. 0)
-%111100 C, %111111 C, %0011 C, \ Column #3 (eff. 1)
-%111111 C, %111111 C, %1111 C, \ Column #4 (eff. 2)
-%111111 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%111111 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%111111 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%111111 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%111111 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%100000 C, %111111 C, %000111 C, %000000 C, \ Column #2
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #6
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "T left", right half at $3E (>).
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%111111 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%111111 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%111111 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%111111 C, %111111 C, %1111 C, \ Column #5 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #3
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%111111 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "West", left half at $3F (?).
 \ Columns #0 and #1 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000110 C, %0000 C, \ Column #2 (eff. 0)
-%100000 C, %011111 C, %0000 C, \ Column #3 (eff. 1)
-%100000 C, %011111 C, %0000 C, \ Column #4 (eff. 2)
-%110000 C, %111111 C, %0000 C, \ Column #5 (eff. 3)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. 4)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. 5)
-%110000 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
-%110000 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %011000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #3
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #4
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "West", right half at $40 (@).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
-%110000 C, %111111 C, %0000 C, \ Column #1 (eff. 9)
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. A)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. B)
-%110000 C, %111111 C, %0000 C, \ Column #4 (eff. C)
-%110000 C, %111111 C, %0000 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "East", left half at $41 (A).
 \ Columns #0 and #1 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. 1)
-%110000 C, %111111 C, %0000 C, \ Column #4 (eff. 2)
-%110000 C, %111111 C, %0000 C, \ Column #5 (eff. 3)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. 4)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. 5)
-%110000 C, %111111 C, %0000 C, \ Column #8 (eff. 6)
-%110000 C, %111111 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "East", right half at $42 (B).
 \ Columns #8 and #9 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0 (eff. 8)
-%110000 C, %111111 C, %0000 C, \ Column #1 (eff. 9)
-%110000 C, %111111 C, %0000 C, \ Column #2 (eff. A)
-%110000 C, %111111 C, %0000 C, \ Column #3 (eff. B)
-%110000 C, %111111 C, %0000 C, \ Column #4 (eff. C)
-%100000 C, %011111 C, %0000 C, \ Column #5 (eff. D)
-%100000 C, %011111 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000110 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #5
+%000000 C, %111110 C, %000001 C, %000000 C, \ Column #6
+%000000 C, %011000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "South", left half at $43 (C).
 \ Columns #0 through #3 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%111111 C, %000111 C, %0000 C, \ Column #4 (eff. 2)
-%111111 C, %001111 C, %0000 C, \ Column #5 (eff. 3)
-%111111 C, %011111 C, %0000 C, \ Column #6 (eff. 4)
-%111111 C, %011111 C, %0000 C, \ Column #7 (eff. 5)
-%111111 C, %011111 C, %0000 C, \ Column #8 (eff. 6)
-%111111 C, %011111 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%111111 C, %011111 C, %000000 C, %000000 C, \ Column #4
+%111111 C, %111111 C, %000000 C, %000000 C, \ Column #5
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #6
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #7
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #8
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #9
 
 \ Character "South", right half at $44 (D).
 \ Columns #6 and #9 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %011111 C, %0000 C, \ Column #0 (eff. 8)
-%111111 C, %011111 C, %0000 C, \ Column #1 (eff. 9)
-%111111 C, %011111 C, %0000 C, \ Column #2 (eff. A)
-%111111 C, %011111 C, %0000 C, \ Column #3 (eff. B)
-%111111 C, %001111 C, %0000 C, \ Column #4 (eff. C)
-%111111 C, %000111 C, %0000 C, \ Column #5 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #0
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #1
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #2
+%111111 C, %111111 C, %000001 C, %000000 C, \ Column #3
+%111111 C, %111111 C, %000000 C, %000000 C, \ Column #4
+%111111 C, %011111 C, %000000 C, %000000 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "North", left half at $45 (E).
 \ Columns #0 through #3 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%111000 C, %111111 C, %1111 C, \ Column #4 (eff. 2)
-%111100 C, %111111 C, %1111 C, \ Column #5 (eff. 3)
-%111110 C, %111111 C, %1111 C, \ Column #6 (eff. 4)
-%111110 C, %111111 C, %1111 C, \ Column #7 (eff. 5)
-%111110 C, %111111 C, %1111 C, \ Column #8 (eff. 6)
-%111110 C, %111111 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%100000 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%110000 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #6
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #7
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #8
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #9
 
 \ Character "North", right half at $46 (F).
 \ Columns #6 and #9 are unsused.
-\ Group A  Group B    Group C (top to bottom)
-%111110 C, %111111 C, %1111 C, \ Column #0 (eff. 8)
-%111110 C, %111111 C, %1111 C, \ Column #1 (eff. 9)
-%111110 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%111110 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%111100 C, %111111 C, %1111 C, \ Column #4 (eff. C)
-%111000 C, %111111 C, %1111 C, \ Column #5 (eff. D)
-%000000 C, %000000 C, %0000 C, \ Column #6 (eff. E)
-%000000 C, %000000 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #0
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #1
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #2
+%111000 C, %111111 C, %111111 C, %000011 C, \ Column #3
+%110000 C, %111111 C, %111111 C, %000011 C, \ Column #4
+%100000 C, %111111 C, %111111 C, %000011 C, \ Column #5
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Door", left half at $47 (G).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %110000 C, %0000 C, \ Column #0
-%110000 C, %110000 C, %0000 C, \ Column #1
-%110000 C, %110000 C, %0000 C, \ Column #2 (eff. 0)
-%110000 C, %110000 C, %0000 C, \ Column #3 (eff. 1)
-%110000 C, %110000 C, %0000 C, \ Column #4 (eff. 2)
-%110000 C, %110000 C, %0000 C, \ Column #5 (eff. 3)
-%110000 C, %110000 C, %0000 C, \ Column #6 (eff. 4)
-%110000 C, %110000 C, %0000 C, \ Column #7 (eff. 5)
-%110000 C, %110000 C, %0000 C, \ Column #8 (eff. 6)
-%110000 C, %110000 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Door", right half at $48 (H).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %110000 C, %0000 C, \ Column #0 (eff. 8)
-%110000 C, %110000 C, %0000 C, \ Column #1 (eff. 9)
-%110000 C, %110000 C, %0000 C, \ Column #2 (eff. A)
-%110000 C, %110000 C, %0000 C, \ Column #3 (eff. B)
-%110000 C, %110000 C, %0000 C, \ Column #4 (eff. C)
-%110000 C, %110000 C, %0000 C, \ Column #5 (eff. D)
-%110000 C, %110000 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %110000 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %110000 C, %0000 C, \ Column #8
-%110000 C, %110000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #2
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #3
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #4
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #5
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %000011 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Pacman going left", left half at $49 (I).
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0
-%000000 C, %000000 C, %0000 C, \ Column #1
-%000000 C, %000000 C, %0000 C, \ Column #2 (eff. 0)
-%000000 C, %000000 C, %0000 C, \ Column #3 (eff. 1)
-%000000 C, %000000 C, %0000 C, \ Column #4 (eff. 2)
-%000000 C, %000000 C, %0000 C, \ Column #5 (eff. 3)
-%000011 C, %000000 C, %1111 C, \ Column #6 (eff. 4)
-%000011 C, %000000 C, %1111 C, \ Column #7 (eff. 5)
-%001111 C, %000000 C, %1111 C, \ Column #8 (eff. 6)
-%001111 C, %000000 C, %1111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #4
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #5
+%001100 C, %000000 C, %111100 C, %000000 C, \ Column #6
+%001100 C, %000000 C, %111100 C, %000000 C, \ Column #7
+%111100 C, %000000 C, %111100 C, %000000 C, \ Column #8
+%111100 C, %000000 C, %111100 C, %000000 C, \ Column #9
 
 \ Character "Pacman going left", right half at $4A (J).
-\ Group A  Group B    Group C (top to bottom)
-%110011 C, %110000 C, %1111 C, \ Column #0 (eff. 8)
-%110011 C, %110000 C, %1111 C, \ Column #1 (eff. 9)
-%111111 C, %111111 C, %1111 C, \ Column #2 (eff. A)
-%111111 C, %111111 C, %1111 C, \ Column #3 (eff. B)
-%111100 C, %111111 C, %0011 C, \ Column #4 (eff. C)
-%111100 C, %111111 C, %0011 C, \ Column #5 (eff. D)
-%110000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%110000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%000000 C, %000000 C, %0000 C, \ Column #8
-%000000 C, %000000 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%001100 C, %000011 C, %111111 C, %000000 C, \ Column #0
+%001100 C, %000011 C, %111111 C, %000000 C, \ Column #1
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #2
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Pacman going up", left half at $4B (K).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%110000 C, %111111 C, %0001 C, \ Column #2 (eff. 0)
-%110000 C, %111111 C, %0011 C, \ Column #3 (eff. 1)
-%000000 C, %111100 C, %0011 C, \ Column #4 (eff. 2)
-%000000 C, %111100 C, %0011 C, \ Column #5 (eff. 3)
-%000000 C, %110000 C, %0111 C, \ Column #6 (eff. 4)
-%000000 C, %110000 C, %0111 C, \ Column #7 (eff. 5)
-%000000 C, %110000 C, %0111 C, \ Column #8 (eff. 6)
-%000000 C, %110000 C, %0111 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %000111 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %001111 C, %000000 C, \ Column #3
+%000000 C, %110000 C, %001111 C, %000000 C, \ Column #4
+%000000 C, %110000 C, %001111 C, %000000 C, \ Column #5
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #6
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #9
 
 \ Character "Pacman going up", right half at $4C (L).
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %110000 C, %0111 C, \ Column #0 (eff. 8)
-%000000 C, %110000 C, %0111 C, \ Column #1 (eff. 9)
-%000000 C, %110000 C, %0111 C, \ Column #2 (eff. A)
-%000000 C, %110000 C, %0111 C, \ Column #3 (eff. B)
-%000000 C, %111100 C, %0011 C, \ Column #4 (eff. C)
-%000000 C, %111100 C, %0011 C, \ Column #5 (eff. D)
-%000000 C, %110011 C, %0011 C, \ Column #6 (eff. E)
-%000000 C, %110011 C, %0001 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #1
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #2
+%000000 C, %000000 C, %011111 C, %000000 C, \ Column #3
+%000000 C, %110000 C, %001111 C, %000000 C, \ Column #4
+%000000 C, %110000 C, %001111 C, %000000 C, \ Column #5
+%000000 C, %001100 C, %001111 C, %000000 C, \ Column #6
+%000000 C, %001100 C, %000111 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Pacman going down", left half at $4D (M).
-\ Group A  Group B    Group C (top to bottom)
-%110000 C, %111111 C, %0000 C, \ Column #0
-%110000 C, %111111 C, %0000 C, \ Column #1
-%111000 C, %001100 C, %0000 C, \ Column #2 (eff. 0)
-%111000 C, %001100 C, %0000 C, \ Column #3 (eff. 1)
-%111100 C, %000011 C, %0000 C, \ Column #4 (eff. 2)
-%111100 C, %000011 C, %0000 C, \ Column #5 (eff. 3)
-%111110 C, %000000 C, %0000 C, \ Column #6 (eff. 4)
-%111110 C, %000000 C, %0000 C, \ Column #7 (eff. 5)
-%111110 C, %000000 C, %0000 C, \ Column #8 (eff. 6)
-%111110 C, %000000 C, %0000 C, \ Column #9 (eff. 7)
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #0
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #1
+%100000 C, %110011 C, %000000 C, %000000 C, \ Column #2
+%100000 C, %110011 C, %000000 C, %000000 C, \ Column #3
+%110000 C, %001111 C, %000000 C, %000000 C, \ Column #4
+%110000 C, %001111 C, %000000 C, %000000 C, \ Column #5
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #6
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #7
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #8
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Pacman going down", right half at $4E (N).
-\ Group A  Group B    Group C (top to bottom)
-%111110 C, %000000 C, %0000 C, \ Column #0 (eff. 8)
-%111110 C, %000000 C, %0000 C, \ Column #1 (eff. 9)
-%111110 C, %000000 C, %0000 C, \ Column #2 (eff. A)
-%111110 C, %000000 C, %0000 C, \ Column #3 (eff. B)
-%111100 C, %000011 C, %0000 C, \ Column #4 (eff. C)
-%111100 C, %000011 C, %0000 C, \ Column #5 (eff. D)
-%111000 C, %111111 C, %0000 C, \ Column #6 (eff. E)
-%111000 C, %111111 C, %0000 C, \ Column #7 (eff. F)
-%110000 C, %111111 C, %0000 C, \ Column #8
-%110000 C, %111111 C, %0000 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #0
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #1
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #2
+%111000 C, %000011 C, %000000 C, %000000 C, \ Column #3
+%110000 C, %001111 C, %000000 C, %000000 C, \ Column #4
+%110000 C, %001111 C, %000000 C, %000000 C, \ Column #5
+%100000 C, %111111 C, %000011 C, %000000 C, \ Column #6
+%100000 C, %111111 C, %000011 C, %000000 C, \ Column #7
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #8
+%000000 C, %111111 C, %000011 C, %000000 C, \ Column #9
 
 \ Character "Inky", left half at $4F (O)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%110000 C, %111111 C, %1111 C, \ Column #2
-%110000 C, %111111 C, %1111 C, \ Column #3
-%111100 C, %111111 C, %0011 C, \ Column #4
-%111100 C, %111111 C, %0011 C, \ Column #5
-%111100 C, %111100 C, %1111 C, \ Column #6
-%111100 C, %111100 C, %1111 C, \ Column #7
-%111111 C, %111111 C, %0011 C, \ Column #8
-%111111 C, %001111 C, %0011 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #6
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %001100 C, %000000 C, \ Column #9
 
 \ Character "Inky", right half at $50 (P).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %001111 C, %0011 C, \ Column #0
-%111111 C, %111111 C, %0011 C, \ Column #1
-%111100 C, %111100 C, %1111 C, \ Column #2
-%111100 C, %111100 C, %1111 C, \ Column #3
-%111100 C, %111111 C, %0011 C, \ Column #4
-%111100 C, %111111 C, %0011 C, \ Column #5
-%110000 C, %111111 C, %1111 C, \ Column #6
-%110000 C, %111111 C, %1111 C, \ Column #7
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %001100 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #2
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001111 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Pinky", left half at $51 (Q)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%110000 C, %111111 C, %1111 C, \ Column #2
-%110000 C, %111111 C, %1110 C, \ Column #3
-%111100 C, %011111 C, %0011 C, \ Column #4
-%111100 C, %101111 C, %0011 C, \ Column #5
-%111100 C, %110100 C, %1111 C, \ Column #6
-%111100 C, %111100 C, %1111 C, \ Column #7
-%111111 C, %111111 C, %0011 C, \ Column #8
-%111111 C, %111111 C, %0011 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #2
+%000000 C, %111111 C, %111011 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001101 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001110 C, %000000 C, \ Column #5
+%110000 C, %010011 C, %111111 C, %000000 C, \ Column #6
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #9
 
 \ Character "Pinky", right half at $52 (R).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %0011 C, \ Column #0
-%111111 C, %111111 C, %0011 C, \ Column #1
-%111100 C, %111100 C, %1111 C, \ Column #2
-%111100 C, %110100 C, %1111 C, \ Column #3
-%111100 C, %101111 C, %0011 C, \ Column #4
-%111100 C, %011111 C, %0011 C, \ Column #5
-%110000 C, %111111 C, %1110 C, \ Column #6
-%110000 C, %111111 C, %1111 C, \ Column #7
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #2
+%110000 C, %010011 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001110 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001101 C, %000000 C, \ Column #5
+%000000 C, %111111 C, %111011 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "Clyde", left half at $53 (S)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %0000 C, \ Column #0 unused
-%000000 C, %000000 C, %0000 C, \ Column #1 unused
-%110000 C, %111111 C, %1111 C, \ Column #2
-%110000 C, %110111 C, %1111 C, \ Column #3
-%111100 C, %101111 C, %0011 C, \ Column #4
-%111100 C, %011111 C, %0011 C, \ Column #5
-%111100 C, %111100 C, %1110 C, \ Column #6
-%111100 C, %111100 C, %1111 C, \ Column #7
-%111111 C, %111111 C, %0011 C, \ Column #8
-%111111 C, %111111 C, %0011 C, \ Column #9
-   
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #1
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #2
+%000000 C, %011111 C, %111111 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001110 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001101 C, %000000 C, \ Column #5
+%110000 C, %110011 C, %111011 C, %000000 C, \ Column #6
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #9
+
 \ Character "Clyde", right half at $54 (T).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %0011 C, \ Column #0
-%111111 C, %111111 C, %0011 C, \ Column #1
-%111100 C, %111100 C, %1111 C, \ Column #2
-%111100 C, %111100 C, %1110 C, \ Column #3
-%111100 C, %011111 C, %0011 C, \ Column #4
-%111100 C, %101111 C, %0011 C, \ Column #5
-%110000 C, %110111 C, %1111 C, \ Column #6
-%110000 C, %111111 C, %1111 C, \ Column #7
-%000000 C, %000000 C, %0000 C, \ Column #8 unused
-%000000 C, %000000 C, %0000 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %001111 C, %000000 C, \ Column #1
+%110000 C, %110011 C, %111111 C, %000000 C, \ Column #2
+%110000 C, %110011 C, %111011 C, %000000 C, \ Column #3
+%110000 C, %111111 C, %001101 C, %000000 C, \ Column #4
+%110000 C, %111111 C, %001110 C, %000000 C, \ Column #5
+%000000 C, %011111 C, %111111 C, %000000 C, \ Column #6
+%000000 C, %111111 C, %111111 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %000000 C, %000000 C, \ Column #9
 
 \ Character "rBlinky", left half at $55 (U)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 unused
-%111111 C, %111111 C, %1111 C, \ Column #1 unused
-%001111 C, %000000 C, %0000 C, \ Column #2
-%001111 C, %000000 C, %0000 C, \ Column #3
-%000011 C, %000000 C, %1100 C, \ Column #4
-%000011 C, %000000 C, %1100 C, \ Column #5
-%000011 C, %000011 C, %0000 C, \ Column #6
-%000011 C, %000011 C, %0000 C, \ Column #7
-%000000 C, %000000 C, %1100 C, \ Column #8
-%000000 C, %000000 C, %1100 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #1
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #5
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #6
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #9
 
 \ Character "rBlinky", right half at $56 (V).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %1100 C, \ Column #0
-%000000 C, %000000 C, %1100 C, \ Column #1
-%000011 C, %000011 C, %0000 C, \ Column #2
-%000011 C, %000011 C, %0000 C, \ Column #3
-%000011 C, %000000 C, %1100 C, \ Column #4
-%000011 C, %000000 C, %1100 C, \ Column #5
-%001111 C, %000000 C, %0000 C, \ Column #6
-%001111 C, %000000 C, %0000 C, \ Column #7
-%111111 C, %111111 C, %1111 C, \ Column #8 unused
-%111111 C, %111111 C, %1111 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #1
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #2
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #5
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #9
 
 \ Character "rInky", left half at $57 (W)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 unused
-%111111 C, %111111 C, %1111 C, \ Column #1 unused
-%001111 C, %000000 C, %0000 C, \ Column #2
-%001111 C, %000000 C, %0000 C, \ Column #3
-%000011 C, %000000 C, %1100 C, \ Column #4
-%000011 C, %000000 C, %1100 C, \ Column #5
-%000011 C, %000011 C, %0000 C, \ Column #6
-%000011 C, %000011 C, %0000 C, \ Column #7
-%000000 C, %000000 C, %1100 C, \ Column #8
-%000000 C, %110000 C, %1100 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #1
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #5
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #6
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %110011 C, %000000 C, \ Column #9
 
 \ Character "rInky", right half at $58 (X).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %110000 C, %1100 C, \ Column #0
-%000000 C, %000000 C, %1100 C, \ Column #1
-%000011 C, %000011 C, %0000 C, \ Column #2
-%000011 C, %000011 C, %0000 C, \ Column #3
-%000011 C, %000000 C, %1100 C, \ Column #4
-%000011 C, %000000 C, %1100 C, \ Column #5
-%001111 C, %000000 C, %0000 C, \ Column #6
-%001111 C, %000000 C, %0000 C, \ Column #7
-%111111 C, %111111 C, %1111 C, \ Column #8 unused
-%111111 C, %111111 C, %1111 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %110011 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #1
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #2
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110000 C, %000000 C, \ Column #5
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #6
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #9
 
 \ Character "rPinky", left half at $59 (Y)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 unused
-%111111 C, %111111 C, %1111 C, \ Column #1 unused
-%001111 C, %000000 C, %0000 C, \ Column #2
-%001111 C, %000000 C, %0001 C, \ Column #3
-%000011 C, %100000 C, %1100 C, \ Column #4
-%000011 C, %010000 C, %1100 C, \ Column #5
-%000011 C, %001011 C, %0000 C, \ Column #6
-%000011 C, %000011 C, %0000 C, \ Column #7
-%000000 C, %000000 C, %1100 C, \ Column #8
-%000000 C, %000000 C, %1100 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #1
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%111100 C, %000000 C, %000100 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110010 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110001 C, %000000 C, \ Column #5
+%001100 C, %101100 C, %000000 C, %000000 C, \ Column #6
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #9
 
 \ Character "rPinky", right half at $5A (Z).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %1100 C, \ Column #0
-%000000 C, %000000 C, %1100 C, \ Column #1
-%000011 C, %000011 C, %0000 C, \ Column #2
-%000011 C, %001011 C, %0000 C, \ Column #3
-%000011 C, %010000 C, %1100 C, \ Column #4
-%000011 C, %100000 C, %1100 C, \ Column #5
-%001111 C, %000000 C, %0001 C, \ Column #6
-%001111 C, %000000 C, %0000 C, \ Column #7
-%111111 C, %111111 C, %1111 C, \ Column #8 unused
-%111111 C, %111111 C, %1111 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #1
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #2
+%001100 C, %101100 C, %000000 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110001 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110010 C, %000000 C, \ Column #5
+%111100 C, %000000 C, %000100 C, %000000 C, \ Column #6
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #9
 
 \ Character "rClyde", left half at $5B ([)
 \ Left: colunm #0 and #1 unused.
-\ Group A  Group B    Group C (top to bottom)
-%111111 C, %111111 C, %1111 C, \ Column #0 unused
-%111111 C, %111111 C, %1111 C, \ Column #1 unused
-%001111 C, %000000 C, %0000 C, \ Column #2
-%001111 C, %001000 C, %0000 C, \ Column #3
-%000011 C, %010000 C, %1100 C, \ Column #4
-%000011 C, %100000 C, %1100 C, \ Column #5
-%000011 C, %000011 C, %0001 C, \ Column #6
-%000011 C, %000011 C, %0000 C, \ Column #7
-%000000 C, %000000 C, %1100 C, \ Column #8
-%000000 C, %000000 C, %1100 C, \ Column #9
+\ Group A  Group B    Group C    Group D (top to bottom)
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #0
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #1
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #2
+%111100 C, %100000 C, %000000 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110001 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110010 C, %000000 C, \ Column #5
+%001100 C, %001100 C, %000100 C, %000000 C, \ Column #6
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #7
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #8
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #9
 
 \ Character "rClyde", right half at $5C (\).
 \ Right: columns #8 and #9 unused.
-\ Group A  Group B    Group C (top to bottom)
-%000000 C, %000000 C, %1100 C, \ Column #0
-%000000 C, %000000 C, %1100 C, \ Column #1
-%000011 C, %000011 C, %0000 C, \ Column #2
-%000011 C, %000011 C, %0001 C, \ Column #3
-%000011 C, %100000 C, %1100 C, \ Column #4
-%000011 C, %010000 C, %1100 C, \ Column #5
-%001111 C, %001000 C, %0000 C, \ Column #6
-%001111 C, %000000 C, %0000 C, \ Column #7
-%111111 C, %111111 C, %1111 C, \ Column #8 unused
-%111111 C, %111111 C, %1111 C, \ Column #9 unused
+\ Group A  Group B    Group C    Group D (top to bottom)
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #0
+%000000 C, %000000 C, %110000 C, %000000 C, \ Column #1
+%001100 C, %001100 C, %000000 C, %000000 C, \ Column #2
+%001100 C, %001100 C, %000100 C, %000000 C, \ Column #3
+%001100 C, %000000 C, %110010 C, %000000 C, \ Column #4
+%001100 C, %000000 C, %110001 C, %000000 C, \ Column #5
+%111100 C, %100000 C, %000000 C, %000000 C, \ Column #6
+%111100 C, %000000 C, %000000 C, %000000 C, \ Column #7
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #8
+%111100 C, %111111 C, %111111 C, %000000 C, \ Column #9
 
 \ The following is twice the number of sprites (dw characters).
 HERE softfont - chrdefbcnt / CONSTANT nchars
