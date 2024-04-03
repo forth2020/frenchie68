@@ -143,21 +143,15 @@ CHAR K CONSTANT cross
 CHAR L CONSTANT pellet
 
 \ -------------------------------------------------------------
-\ Cursor control.
+\ Cursor control. VT200 control sequences.
 
 $1B CONSTANT esc
 
-\ Turn off the cursor (VT200 control sequence).
+\ Turn off the cursor.
 : -cursor ( -- ) esc EMIT ." [?25l" ;
 
-\ Turn on the cursor (VT200 control sequence).
+\ Turn on the cursor.
 : +cursor ( -- ) esc EMIT ." [?25h" ;
-
-\ Turn off keyboard autorepeat (DECARM)
-: -autorepeat ( -- ) esc EMIT ." [?8l" ;
-
-\ Turn on keyboard autorepeat (DECARM)
-: +autorepeat ( -- ) esc EMIT ." [?8h" ;
 
 \ -------------------------------------------------------------
 \ VT420 specific material.
@@ -175,8 +169,7 @@ $1B CONSTANT esc
 85 CONSTANT ufn   \ User font name is 'U' (argument to DSCS)
 
 pcmh 5 + 6 / CONSTANT nsixels \ Sixels per column
-nsixels pcmw *
-  CONSTANT chrdefbcnt \ Per-char definition byte count
+nsixels pcmw * CONSTANT chrdefbcnt \ Per-char def. byte count
 
 : dscs ( -- ) ufn EMIT ;
 : dcs ( -- ) esc EMIT $50 EMIT ; \ Define character set.
@@ -1107,15 +1100,13 @@ IFGF warnings on
 : initialize ( -- )
   initvars
   -cursor               \ Cursor off
-  -autorepeat           \ Disable keyboard autorepeat
-  esc EMIT ."  F"       \ VT400 mode, 7-bit control (PRM/88)
+  esc EMIT ."  F"       \ 7-bit C1 control characters
   decdld                \ Upload charset definition
   custom-charset-select ;     \ Select custom character set
 
 : finalize ( -- )
   default-charset-select       \ Select custom character set
   24 79 AT-XY CR
-  +autorepeat           \ Re-enable keyboard autorepeat
   +cursor ;             \ Cursor on
 
 : .var ( varaddr -- )
@@ -1137,7 +1128,7 @@ IFGF warnings on
   0 10 AT-XY gamlev  .var
   custom-charset-select ;
 
-\ XXX: this slows the game down considerably when the ghosts
+\ TODO: this slows the game down considerably when the ghosts
 \ are in the 'frightened" state because:
 \ 1/ the display is updated on every clock cycle.
 \ 2/ under Z79Forth, the pictured numbers code is based on
@@ -1502,6 +1493,16 @@ END-STRUCTURE
   THEN
   R> DROP ;
 
+\ Re-display an erasable that was at least partially obscured
+\ by a ghost passing by.
+: .interfering ( self -- )
+  >R
+  R@ e.igchr C@ IF
+    R@ e.ipcol# C@ x0 + R@ e.ivrow# C@ >grid-space AT-XY
+      R@ e.igchr C@ .grid-char
+  THEN
+  R> DROP ;
+
 \ Utility routine--not a method.
 : entity.reset-coords-and-dir ( self -- )
   >R
@@ -1526,7 +1527,28 @@ END-STRUCTURE
   0 fright_timer !           \ PM no longer "supercharged"
   0 pacman-addr e.reward C!  \ Reset the 'reward' field
 
-  pacman-addr entity.reset-coords-and-dir ;
+  \ Every entity returned to its original upright position.
+  entvec #entities 0 DO
+    DUP @
+      \ Blank current entity location.
+      DUP DUP e.pcol# C@ x0 +
+        SWAP e.vrow# C@ >grid-space AT-XY 2 SPACES
+
+      \ Restore potentiallly obscured character.
+      DUP .interfering
+
+      \ Also clear the possible interference record.
+      DUP e.igchr FALSE SWAP C!
+
+      I IF  \ Keep the ghosts mostly harmless for a little time
+        DUP e.resurr 20 SWAP C!
+      THEN
+
+      \ Generic death handling.
+      DUP entity.reset-coords-and-dir
+      e.inited FALSE SWAP C!
+    CELL+
+  LOOP DROP ;
 
 \ Debugging support.
 : debug-enter ( -- )
@@ -1842,16 +1864,6 @@ END-STRUCTURE
   S" ghost.dirselect: unsupported ghost mode"
     crash-and-burn ;
 
-\ Re-display an erasable that was at least partially obscured
-\ by a ghost passing by.
-: .interfering ( self -- )
-  >R
-  R@ e.igchr C@ IF
-    R@ e.ipcol# C@ x0 + R@ e.ivrow# C@ >grid-space AT-XY
-      R@ e.igchr C@ .grid-char
-  THEN
-  R> DROP ;
-
 \ Utility routine--not a method.
 : entity.initial-display ( self -- )
   >R
@@ -1984,7 +1996,7 @@ END-STRUCTURE
     \ Note: only Blinky resurrects outside of the pen.
     DUP e.resurr C@ 0= IF
       DUP .interfering
-      0 OVER e.igchr C!
+      0 OVER e.igchr C!   \ Clear interference record
 
       50 OVER e.resurr C! \ Ghost grounded for 50 clk cycles
 
@@ -2002,7 +2014,7 @@ END-STRUCTURE
 
       \ Ghost returned to the pen.
       R@ IF          \ If the ghost just killed was ONPROC
-        ROT DROP NIP \ Drop anticipated ghost coordinates
+        NIP NIP      \ Drop anticipated ghost coordinates
         DUP e.pcol# C@ SWAP e.vrow# C@
       ELSE
         DROP         \ S: pcol-new\vrow-new
@@ -2011,16 +2023,25 @@ END-STRUCTURE
       DROP           \ S: pcol-new\vrow-new
     THEN
   ELSE               \ PM dies
-    DROP             \ S: pcol-new\vrow-new
+    \ S: pcol-new\vrow-new\ghost-addr, R: onproc
     .pacman-dying-routine
 
     lives 2@ -1. D+ lives 2! \ Decrement 'lives' (a double)
     update-lives             \ and update the display
 
-    2000 MS          \ Wait for 2 seconds.
-
-    lives 2@ 0. D= IF
+    lives 2@ D0= IF
       S" collision-handle: game over!" crash-and-burn
+    THEN
+
+    \ If R@ is FALSE, PM was ONPROC and we need to update
+    \ pcol-new\vrow-new to match PM's coordinates post mortem.
+    R@ 0= IF
+      DROP 2DROP
+      pacman-addr e.pcol# C@  pacman-addr e.vrow# C@
+    ELSE
+      \ A ghost is ONPROC and is responsible for PM's death.
+      NIP NIP
+      DUP e.pcol# C@ SWAP e.vrow# C@
     THEN
   THEN
 
@@ -2094,7 +2115,6 @@ END-STRUCTURE
 
   IF ( pcol-new\vrow-new\ghost-addr )
     \ Pass on whether the colliding ghost is ONPROC.
-    \ If it is, coordinates might be revisited, otherwise not.
     DUP R@ = SWAP collision-handle
   ELSE
     DROP
@@ -2340,9 +2360,8 @@ IFGF TYPE [CHAR] ] EMIT SPACE
       THEN
 
       \ Regular entity scheduling.
-      entvec @ DUP e.strategy :: \ Pacman's move
-      entvec CELL+ #ghosts 0 ?DO
-        DUP @ DUP e.strategy ::  \ Move the current ghost
+      entvec #entities 0 DO
+        DUP @ DUP e.strategy ::  \ Move current entity
         CELL+
       LOOP DROP
 
