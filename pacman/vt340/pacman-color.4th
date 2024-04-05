@@ -1,14 +1,18 @@
-\ Disclaimer: this code is VT420 specific!
-\ See https://vt100.net/mirror/mds-199909/cd3/term/vt42pupa.pdf
+\ Disclaimer: this code is VT340 specific!
+\
+\ See https://github.com/hackerb9/vt340test/tree/main/docs
 \ for the programmer's reference manual (PRM).
+\ Many thanks to github::hackerb9 for his input wrt. ReGIS
+\ programming for colored text support!
+\
 \ The code was developed under Gforth 0.7.3.
 \
 \ The magic incantation to start getty (as root) is:
 \
-\ /bin/stty -F /dev/ttyS0 38400
+\ /bin/stty -F /dev/ttyS0 19200
 \ exec < /dev/ttyS0
 \ exec /usr/bin/setsid -c \
-\    /sbin/agetty -8 -c -s -L ttyS0 38400 vt420
+\    /sbin/agetty -8 -c -s -L ttyS0 19200 vt340
 \
 \ You might elect to mess up with systemd's configuration.
 \ I do not.
@@ -143,27 +147,60 @@ CHAR K CONSTANT cross
 CHAR L CONSTANT pellet
 
 \ -------------------------------------------------------------
-\ Cursor control.
+\ Cursor control. VT200 control sequences.
 
 $1B CONSTANT esc
 
-\ Turn off the cursor (VT200 control sequence).
+\ Turn off the cursor.
 : -cursor ( -- ) esc EMIT ." [?25l" ;
 
-\ Turn on the cursor (VT200 control sequence).
+\ Turn on the cursor.
 : +cursor ( -- ) esc EMIT ." [?25h" ;
 
-\ Turn off keyboard autorepeat (DECARM)
-: -autorepeat ( -- ) esc EMIT ." [?8l" ;
+\ -------------------------------------------------------------
+\ Select Graphic Rendition (SGR). VT100 control sequences.
 
-\ Turn on keyboard autorepeat (DECARM)
-: +autorepeat ( -- ) esc EMIT ." [?8h" ;
+\ Control Sequence Introducer.
+: csi ( -- ) esc EMIT [CHAR] [ EMIT ;
+
+\ Select 'bold' character rendition.
+: bold-sgr ( -- ) csi ." 1m" ;
+
+\ Select 'All attributes off' character rendition.
+: default-sgr csi ." 0m" ;
 
 \ -------------------------------------------------------------
-\ VT420 specific material.
+\ Device Status Report/Cursor Position Report (DSR/CPR).
+\ VT100 control sequences.
 
-\ Screen resolution is 800x400 in 80 column mode.
-\ Aspect ratio is 1:1.4 (width/height).
+\ : get-xy ( -- x y )
+\   csi ." 6n"
+\ 
+\   \ Expected reply is: csi <line#> ; <col#> R
+\   \ Caution: line#/col# are numbered starting from 1!
+\   \ This is a fast and loose implementation in the sense that
+\   \ we do not even make sure that the first two characters
+\   \ of the reply are esc [ (CSI).
+\   pad BEGIN
+\     KEY 2DUP
+\     SWAP C!
+\     SWAP 1+ SWAP
+\     [CHAR] R =
+\   UNTIL
+\   pad -            \ TOS has the reply length in bytes
+\ 
+\   2 - >R           \ Skip CSI in the reply
+\   0. pad 2 + R> >NUMBER
+\   1- SWAP 1+ SWAP
+\   0. 3 ROLL 3 ROLL >NUMBER
+\   2DROP D>S 1-
+\   -ROT D>S 1- ;
+
+\ -------------------------------------------------------------
+\ VT340 specific material (user defined font definition).
+
+\ Screen resolution is 800x480 in 80 column mode.
+\ Characters are defined by a 10 (width) by 20 (height) matrix.
 1  CONSTANT pfn
 1  CONSTANT pcn   \ First soft char at $21--do not override BL!
 1  CONSTANT pe    \ Erase only new definitions
@@ -1034,33 +1071,98 @@ HERE softfont - chrdefbcnt / CONSTANT nchars
   \ Charset designation.
   esc EMIT [CHAR] ) EMIT dscs ; \ G1 <- <UserFontName>
 
+\ -------------------------------------------------------------
+\ Re-define AT-XY so that we do not have to query the terminal
+\ DSR/CPR status at all (get-xy).
+
+VARIABLE termx                 \ 0 based
+VARIABLE termy                 \ 0 based
+
+\ Z79Forth will issue a warning and there's nothing to prevent
+\ that from happening. Uncool as it is, the primary target for
+\ the VT340 implemenation is GNU forth. Besides there is
+\ currently no way to operate the Z79Forth serial line
+\ at 19200 bps...
+IFGF warnings off
+: AT-XY ( x y -- )
+  2DUP termy !
+  termx !
+  AT-XY ;
+IFGF warnings on
+
+: at-x2+! ( -- )
+  2 termx @ + termx ! ;
+
+: get-xy ( -- x y )
+  termx @ termy @ ;
+
+\ -------------------------------------------------------------
+\ VT340 color planes selection in 'bold' SGR mode.
+
+0  CONSTANT color_gray75
+8  CONSTANT color_gray50    \ Use for crosses and power pellets
+9  CONSTANT color_yellow    \ Use for PM
+10 CONSTANT color_cyan      \ Use for Inky
+11 CONSTANT color_magenta   \ Use for Pinky
+12 CONSTANT color_green     \ Green is the new orange (Clyde)
+13 CONSTANT color_red       \ Use for Blinky
+14 CONSTANT color_blue      \ Use for the maze walls
+15 CONSTANT color_black     \ Use for blanking
+
+\ Print double width character 'even-char' in 'color'.
+: .dwc-color ( color even-char -- )
+  \ If the selected color is black, just emit two spaces.
+  OVER color_black = IF
+    DROP 2 SPACES
+  ELSE
+    $21 + DUP EMIT 1+ EMIT
+  THEN
+  get-xy             \ S: color\x\y
+
+  \ Now to use ReGIS commands to set the characters' color.
+  20 *             \ S: color\x\ReGIS-Y
+  SWAP 10 *        \ S: color\ReGIS-Y\ReGIS-X
+  dcs ." 0p;P[" decsend [CHAR] , EMIT decsend [CHAR] ] EMIT
+  case!
+  case@ color_blue    = IF ." @B;" THEN
+  case@ color_yellow  = IF ." @Y;" THEN
+  case@ color_green   = IF ." @G;" THEN
+  case@ color_red     = IF ." @R;" THEN
+  case@ color_cyan    = IF ." @C;" THEN
+  case@ color_magenta = IF ." @M;" THEN
+\   ." F(V(W(F" decsend ." ,R))0642);"
+  st
+  at-x2+! ;
+
+\ -------------------------------------------------------------
 \ Display doublewidth character at offset 'offs'.
 \ $21 is the first user defined character in the software font.
-: .dwchar ( offs -- ) $21 + DUP EMIT 1+ EMIT ;
+
+: .dwchar ( offs -- ) $21 + DUP EMIT 1+ EMIT at-x2+! ;
 
 : .blinky  ( -- ) 0  .dwchar ; \ Blinky (instanciated)
-: .cross   ( -- ) 2  .dwchar ; \ Erasable/pacman
-: .pmrgt   ( -- ) 4  .dwchar ; \ Pacman -> right (instanciated)
-: .pmgo    ( -- ) 6  .dwchar ; \ Pacman gobbling
-: .llc     ( -- ) 8  .dwchar ;
-: .lrc     ( -- ) 10 .dwchar ;
-: .hbar    ( -- ) 12 .dwchar ;
-: .vbar    ( -- ) 14 .dwchar ;
-: .ulc     ( -- ) 16 .dwchar ;
-: .urc     ( -- ) 18 .dwchar ;
-: .ppl     ( -- ) 20 .dwchar ; \ Erasable/pacman
-: .tdn     ( -- ) 22 .dwchar ;
-: .tup     ( -- ) 24 .dwchar ;
-: .trg     ( -- ) 26 .dwchar ;
-: .tlf     ( -- ) 28 .dwchar ;
-: .west    ( -- ) 30 .dwchar ;
-: .east    ( -- ) 32 .dwchar ;
-: .south   ( -- ) 34 .dwchar ;
-: .north   ( -- ) 36 .dwchar ;
-: .door    ( -- ) 38 .dwchar ; \ Erasable/ghosts in the pen
-: .pmlft   ( -- ) 40 .dwchar ; \ Pacman -> left
-: .pmupw   ( -- ) 42 .dwchar ; \ Pacman -> up
-: .pmdnw   ( -- ) 44 .dwchar ; \ Pacman -> down
+: .cross   ( -- ) 2  .dwchar ; \ Erasable/PM
+: .pmrgt   ( -- ) 4  .dwchar ; \ PM -> right
+: .pmgo    ( -- ) 6  .dwchar ; \ PM gobbling
+: .llc     ( -- ) color_blue 8  .dwc-color ;
+: .lrc     ( -- ) color_blue 10 .dwc-color ;
+: .hbar    ( -- ) color_blue 12 .dwc-color ;
+: .vbar    ( -- ) color_blue 14 .dwc-color ;
+: .ulc     ( -- ) color_blue 16 .dwc-color ;
+: .urc     ( -- ) color_blue 18 .dwc-color ;
+: .ppl     ( -- ) 20 .dwchar ; \ Erasable/PM
+: .tdn     ( -- ) color_blue 22 .dwc-color ;
+: .tup     ( -- ) color_blue 24 .dwc-color ;
+: .trg     ( -- ) color_blue 26 .dwc-color ;
+: .tlf     ( -- ) color_blue 28 .dwc-color ;
+: .west    ( -- ) color_blue 30 .dwc-color ;
+: .east    ( -- ) color_blue 32 .dwc-color ;
+: .south   ( -- ) color_blue 34 .dwc-color ;
+: .north   ( -- ) color_blue 36 .dwc-color ;
+: .door    ( -- ) color_blue 38 .dwc-color ; \ Eras./ghosts in pen
+: .pmlft   ( -- ) 40 .dwchar ; \ PM -> left
+: .pmupw   ( -- ) 42 .dwchar ; \ PM -> up
+: .pmdnw   ( -- ) 44 .dwchar ; \ PM -> down
 : .inky    ( -- ) 46 .dwchar ; \ Inky (instanciated)
 : .pinky   ( -- ) 48 .dwchar ; \ Pinky (instanciated)
 : .clyde   ( -- ) 50 .dwchar ; \ Clyde (instanciated)
@@ -1106,16 +1208,30 @@ IFGF warnings on
 : initialize ( -- )
   initvars
   -cursor               \ Cursor off
-  -autorepeat           \ Disable keyboard autorepeat
-  esc EMIT ."  F"       \ VT400 mode, 7-bit control (PRM/88)
+  esc EMIT ."  F"       \ 7-bit C1 control characters
   decdld                \ Upload charset definition
-  custom-charset-select ;     \ Select custom character set
+  custom-charset-select \ Select custom character set
+  bold-sgr
+
+  \ VT340 specific code follows.
+  dcs
+    \ 20 league boots (M20px per stride of Vector).
+    \ Intensity 0 draws black (0000).
+    ." 1p;W(M20,I0);"
+
+    ." @:B F(V(W(F14,R))0642) @;" \ Blue macrograph
+    ." @:Y F(V(W(F9,R))0642) @;"  \ Yellow macrograph
+    ." @:R F(V(W(F13,R))0642) @;" \ Red macrograph
+    ." @:G F(V(W(F12,R))0642) @;" \ Green macrograph
+    ." @:C F(V(W(F10,R))0642) @;" \ Cyan macrograph
+    ." @:M F(V(W(F11,R))0642) @;" \ Magenta macrograph
+  st ;
 
 : finalize ( -- )
   default-charset-select       \ Select custom character set
   24 79 AT-XY CR
-  +autorepeat           \ Re-enable keyboard autorepeat
-  +cursor ;             \ Cursor on
+  +cursor               \ Cursor on
+  default-sgr ;
 
 : .var ( varaddr -- )
   2@ <# # # # # # # # # #> TYPE ;
@@ -1136,7 +1252,7 @@ IFGF warnings on
   0 10 AT-XY gamlev  .var
   custom-charset-select ;
 
-\ XXX: this slows the game down considerably when the ghosts
+\ TODO: this slows the game down considerably when the ghosts
 \ are in the 'frightened" state because:
 \ 1/ the display is updated on every clock cycle.
 \ 2/ under Z79Forth, the pictured numbers code is based on
@@ -1213,18 +1329,20 @@ IFGF warnings on
   default-charset-select
   0 23 AT-XY TYPE
   CR .S
-  drain +cursor QUIT ;
+  drain +cursor
+  default-sgr      \ VT340 specific code.
+  QUIT ;
 
 \ Display grid character (double width) at the current
 \ cursor position.
 : .grid-char ( grid-char -- )
-  DUP BL = IF DROP 2 SPACES EXIT THEN
+  DUP BL = IF DROP 2 SPACES at-x2+! EXIT THEN
+
   DUP [CHAR] A [CHAR] ^ 1+ WITHIN 0= IF
     S" .grid-char: illegal character" crash-and-burn
   THEN
 
   case!
-  BL       case? IF 2 SPACES EXIT THEN
   [CHAR] A case? IF .ulc     EXIT THEN
   [CHAR] B case? IF .urc     EXIT THEN
   [CHAR] C case? IF .llc     EXIT THEN
@@ -1501,6 +1619,16 @@ END-STRUCTURE
   THEN
   R> DROP ;
 
+\ Re-display an erasable that was at least partially obscured
+\ by a ghost passing by.
+: .interfering ( self -- )
+  >R
+  R@ e.igchr C@ IF
+    R@ e.ipcol# C@ x0 + R@ e.ivrow# C@ >grid-space AT-XY
+      R@ e.igchr C@ .grid-char
+  THEN
+  R> DROP ;
+
 \ Utility routine--not a method.
 : entity.reset-coords-and-dir ( self -- )
   >R
@@ -1525,7 +1653,28 @@ END-STRUCTURE
   0 fright_timer !           \ PM no longer "supercharged"
   0 pacman-addr e.reward C!  \ Reset the 'reward' field
 
-  pacman-addr entity.reset-coords-and-dir ;
+  \ Every entity returned to its original upright position.
+  entvec #entities 0 DO
+    DUP @
+      \ Blank current entity location.
+      DUP DUP e.pcol# C@ x0 +
+        SWAP e.vrow# C@ >grid-space AT-XY 2 SPACES
+
+      \ Restore potentiallly obscured character.
+      DUP .interfering
+
+      \ Also clear the possible interference record.
+      DUP e.igchr FALSE SWAP C!
+
+      I IF  \ Keep the ghosts mostly harmless for a little time
+        DUP e.resurr 20 SWAP C!
+      THEN
+
+      \ Generic death handling.
+      DUP entity.reset-coords-and-dir
+      e.inited FALSE SWAP C!
+    CELL+
+  LOOP DROP ;
 
 \ Debugging support.
 : debug-enter ( -- )
@@ -1841,16 +1990,6 @@ END-STRUCTURE
   S" ghost.dirselect: unsupported ghost mode"
     crash-and-burn ;
 
-\ Re-display an erasable that was at least partially obscured
-\ by a ghost passing by.
-: .interfering ( self -- )
-  >R
-  R@ e.igchr C@ IF
-    R@ e.ipcol# C@ x0 + R@ e.ivrow# C@ >grid-space AT-XY
-      R@ e.igchr C@ .grid-char
-  THEN
-  R> DROP ;
-
 \ Utility routine--not a method.
 : entity.initial-display ( self -- )
   >R
@@ -1983,7 +2122,7 @@ END-STRUCTURE
     \ Note: only Blinky resurrects outside of the pen.
     DUP e.resurr C@ 0= IF
       DUP .interfering
-      0 OVER e.igchr C!
+      0 OVER e.igchr C!   \ Clear interference record
 
       50 OVER e.resurr C! \ Ghost grounded for 50 clk cycles
 
@@ -2001,7 +2140,7 @@ END-STRUCTURE
 
       \ Ghost returned to the pen.
       R@ IF          \ If the ghost just killed was ONPROC
-        ROT DROP NIP \ Drop anticipated ghost coordinates
+        NIP NIP      \ Drop anticipated ghost coordinates
         DUP e.pcol# C@ SWAP e.vrow# C@
       ELSE
         DROP         \ S: pcol-new\vrow-new
@@ -2010,16 +2149,25 @@ END-STRUCTURE
       DROP           \ S: pcol-new\vrow-new
     THEN
   ELSE               \ PM dies
-    DROP             \ S: pcol-new\vrow-new
+    \ S: pcol-new\vrow-new\ghost-addr, R: onproc
     .pacman-dying-routine
 
     lives 2@ -1. D+ lives 2! \ Decrement 'lives' (a double)
     update-lives             \ and update the display
 
-    2000 MS          \ Wait for 2 seconds.
-
-    lives 2@ 0. D= IF
+    lives 2@ D0= IF
       S" collision-handle: game over!" crash-and-burn
+    THEN
+
+    \ If R@ is FALSE, PM was ONPROC and we need to update
+    \ pcol-new\vrow-new to match PM's coordinates post mortem.
+    R@ 0= IF
+      DROP 2DROP
+      pacman-addr e.pcol# C@  pacman-addr e.vrow# C@
+    ELSE
+      \ A ghost is ONPROC and is responsible for PM's death.
+      NIP NIP
+      DUP e.pcol# C@ SWAP e.vrow# C@
     THEN
   THEN
 
@@ -2093,7 +2241,6 @@ END-STRUCTURE
 
   IF ( pcol-new\vrow-new\ghost-addr )
     \ Pass on whether the colliding ghost is ONPROC.
-    \ If it is, coordinates might be revisited, otherwise not.
     DUP R@ = SWAP collision-handle
   ELSE
     DROP
@@ -2313,7 +2460,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
 
 : _main ( -- )
   BEGIN
-    DEPTH IF S" WTF?" crash-and-burn THEN
+\   DEPTH IF S" WTF?" crash-and-burn THEN
     remitems# @ 0= IF      \ If remitems# is 0, start new level
       .initial-grid
       update-level
@@ -2339,9 +2486,8 @@ IFGF TYPE [CHAR] ] EMIT SPACE
       THEN
 
       \ Regular entity scheduling.
-      entvec @ DUP e.strategy :: \ Pacman's move
-      entvec CELL+ #ghosts 0 ?DO
-        DUP @ DUP e.strategy ::  \ Move the current ghost
+      entvec #entities 0 DO
+        DUP @ DUP e.strategy ::  \ Move current entity
         CELL+
       LOOP DROP
 
