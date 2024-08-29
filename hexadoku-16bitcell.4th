@@ -1,6 +1,5 @@
-\ Hexadoku Solver. Francois Laagel.                May 11, 2023
 
-\ The interesting thing about this algorithm is that is does
+\ The interesting thing about this algorithm is that it does
 \ not work by looking for a solution. It works by systematic
 \ refutation of possibilities leading to constraint violations.
 \ Eventually, a solution might emerge--or not. There could be
@@ -62,7 +61,6 @@ MARKER wasteit
 
 : CELL/ 1 RSHIFT ;
 : 2CELLS/ 2 RSHIFT ;
-: 2nip 2SWAP 2DROP ;
 
 : 16* 4 LSHIFT ;
 : 16/mod DUP $F AND SWAP 4 RSHIFT ;
@@ -81,7 +79,7 @@ VARIABLE solutions
 CREATE grid 256 CELLS ALLOT    \ 16x16 is the problem size
 
 \ A transaction is the unit of rollbacks (undos). It is defined
-\ as a set of grid saved states between the time we make a
+\ as the set of grid saved states between the time we make a
 \ speculative choice and the time when a constraint violation
 \ is detected or when a nested speculative choice is made
 \ (excluded).
@@ -90,11 +88,11 @@ CREATE grid 256 CELLS ALLOT    \ 16x16 is the problem size
 CREATE tstack tstk-nitems 2* CELLS ALLOT
 HERE CONSTANT tstk-bottom
 \ Each entry on the transaction stack is:
-\ TOS:  saved-bitmask		1 CELL
-\ TOS+1: mxxx.xxxx:yyyy.yyyy	1 CELL
-\ 	bit #15:	beginning of transaction marker.
-\ 	bits #14-8:	xcol: 0..15
-\ 	bit #7-0:	yrow: 0..15
+\ TOS:  saved-bitmask           1 CELL
+\ TOS+1: mxxx.xxxx:yyyy.yyyy    1 CELL
+\       bit #15:        beginning of transaction marker.
+\       bits #14-8:     xcol: 0..15
+\       bit #7-0:       yrow: 0..15
 VARIABLE tstkp
 
 \ Statistical data support.
@@ -155,6 +153,9 @@ $1000 , $2000 , $4000 , $8000 ,
 \ -------------------------------------------------------------
 \ Incremental grid visualization.
 
+: getxy-from-grid-addr ( saddr - x y )
+  grid - cell/ 16/mod ;
+
 : |visual ( val saddr -- val saddr )
   \ No visualization if looking for for multiple solutions.
   stopon1st 0= IF EXIT THEN
@@ -179,8 +180,7 @@ $1000 , $2000 , $4000 , $8000 ,
     DROP EXIT
   THEN
 
-  \ Now to convert 'saddr' to x,y.
-  OVER grid - cell/ 16/mod   \ S: val\saddr\char-from-val\x\y
+  OVER getxy-from-grid-addr    \ S: val\saddr\char-from-val\x\y
   SWAP 2* SWAP AT-XY EMIT ;
 
 \ -------------------------------------------------------------
@@ -208,22 +208,22 @@ $1000 , $2000 , $4000 , $8000 ,
   tstk-bottom tstkp @ - 2cells/ 0=
     ABORT" Transaction stack underflow"
 
-  tstkp @ DUP @ >R             \ R: bitmsk, S: tsktp@
+  tstkp @ DUP @ >R             \ R: bitmask, S: tsktp@
   CELL+ tstkp !
 
-  tstkp @ DUP @ >R             \ R: bitmsk\mX:Y, S: tsktp@
+  tstkp @ DUP @ >R             \ R: bitmask\mX:Y, S: tsktp@
   CELL+ tstkp !
 
-  R> DUP $8000 AND             \ R: bitmsk, S: mX:Y\beg-flg
-  SWAP $7FFF AND               \ R: bitmsk, S: beg-flg\X\Y
+  R> DUP $8000 AND             \ R: bitmask, S: mX:Y\begin-flg
+  SWAP $7FFF AND               \ R: bitmask, S: begin-flg\X\Y
 
-  DUP 8 RSHIFT SWAP $FF AND    \ R: bitmsk, S: beg-flg\X\Y
-  16* + CELLS grid +           \ R: bitmsk, S: beg-flg\saddr
-  R> SWAP                      \ S: beg-flg\bitmsk\saddr
+  DUP 8 RSHIFT SWAP $FF AND    \ R: bitmask, S: begin-flg\X\Y
+  16* + CELLS grid +           \ R: bitmask, S: begin-flg\saddr
+  R> SWAP                      \ S: begin-flg\bitmask\saddr
 
   \ Check whether we are going from resolved to unresolved.
   \ If so increment 'unknowns' accordingly.
-  DUP @ countbits 1 = IF       \ S: beg-flg\bitmsk\saddr
+  DUP @ countbits 1 = IF       \ S: begin-flg\bitmask\saddr
     OVER countbits 1 > IF
       unknowns 1+!
     THEN
@@ -282,7 +282,7 @@ $1000 , $2000 , $4000 , $8000 ,
 \ S" ....:....:....:...." 14 initline
 \ S" ....:....:....:...." 15 initline
 
-  \ Original design.
+  \ Original design (1.2+M backtracks).
   S" 0...:.5.7:.9.B:.DEF" 0  initline
   S" 45..:C..F:...2:..AB" 1  initline
   S" ..A.:..2.:.D..:.5.7" 2  initline
@@ -442,14 +442,14 @@ $1000 , $2000 , $4000 , $8000 ,
 \ 4x4 block logic: either a spot is known or the list
 \ of alternatives must exclude all known spots values.
 : reduce4x4 ( -- failure-flag )
-  4 0 DO                       \ Iterate over rows
-    4 0 DO                     \ Iterate over columns
+  4 0 DO                       \ Iterate over quadrant rows
+    4 0 DO                     \ Iterate over quadrant columns
       I 4 * J 4 *
       2DUP getmask4 IF
         2DROP UNLOOP UNLOOP TRUE EXIT
       THEN
       ( S: xcol#\yrow#\new-possibly-zero-mask ) setmask4 IF
-        UNLOOP UNLOOP TRUE EXIT \ XXX removed extra 2DROP here!
+        UNLOOP UNLOOP TRUE EXIT
       THEN
     LOOP
   LOOP FALSE ;
@@ -457,30 +457,37 @@ $1000 , $2000 , $4000 , $8000 ,
 \ -------------------------------------------------------------
 \ Horizontal exclusion/filtering.
 
+\ ANS94 3.2.3.3 Return stack:
+\ A program shall not access from within a DO-LOOP values
+\ placed on the return stack before the loop was entered.
+\ Note: this is enforced in SwiftForth but not in Gforth.
+
 \ No side effects.
 : get-horiz-mask ( yrow -- mask\FALSE | TRUE )
+  16* CELLS grid +             \ Start of row address
   0                            \ Sanity check
   $FFFF                        \ Initial mask
-  ROT 16* CELLS grid + >R      \ Beginning of row address
   16 0 DO                      \ Iterate over columns
-    \ S: check\mask
-    J I CELLS + @ DUP countbits 1 = IF
-      \ S: check\mask\val
-      ROT OVER \ S: mask\val\check\val
-      2DUP AND \ S: mask\val\check\val\(check&val)
+    \ srow-addr\check\mask
+    2 PICK I CELLS + @ DUP countbits 1 = IF
+      \ srow-addr\check\mask\val
+      ROT OVER \ srow-addr\mask\val\check\val
+      2DUP AND \ srow-addr\mask\val\check\val\(check&val)
 
       IF                       \ Bit is already set!!!
-        UNLOOP R> DROP 2DROP 2DROP TRUE EXIT
+        UNLOOP 2DROP 2DROP DROP TRUE EXIT
       THEN
 
-      \ S: mask\val\check\val
-      OR                       \ S: mask\val\(check|val)
-      -rot                     \ S: (check|val)\mask\val
+      \ srow-addr\mask\val\check\val
+      OR                       \ srow-addr\mask\val\(check|val)
+      -rot                     \ srow-addr\(check|val)\mask\val
       INVERT AND
     ELSE
       DROP
     THEN
-  LOOP R> DROP NIP FALSE ;
+  LOOP
+  \ srow-addr\check\mask
+  NIP NIP FALSE ;
 
 : set-horiz-mask ( yrow mask -- failure-flag )
   \ If 'mask' is zero. just return a success indication.
@@ -509,28 +516,30 @@ $1000 , $2000 , $4000 , $8000 ,
 
 \ No side effects.
 : get-vert-mask ( xcol -- mask\FALSE | TRUE )
+  CELLS grid +                 \ Start of column address
   0                            \ Sanity check
   $FFFF                        \ Initial mask
-  ROT CELLS grid + >R          \ Beginning of column address
   16 0 DO                      \ Iterate over rows
-    \ S: check\mask
-    J I 16* CELLS + @ DUP countbits 1 = IF
-      \ S: check\mask\val
-      ROT OVER                 \ S: mask\val\check\val
-      2DUP AND              \ S: mask\val\check\val\(check&val)
+    \ scol-addr\check\mask
+    2 PICK I 16* CELLS + @ DUP countbits 1 = IF
+      \ scol-addr\check\mask\val
+      ROT OVER \ scol-addr\mask\val\check\val
+      2DUP AND \ scol-addr\mask\val\check\val\(check&val)
 
       IF                       \ Bit is already set!!!
-        UNLOOP R> DROP 2DROP 2DROP TRUE EXIT
+        UNLOOP 2DROP 2DROP DROP TRUE EXIT
       THEN
 
-      \ S: mask\val\check\val
-      OR                       \ S: mask\val\(check|val)
-      -rot                     \ S: (check|val)\mask\val
+      \ scol-addr\mask\val\check\val
+      OR                       \ scol-addr\mask\val\(check|val)
+      -rot                     \ scol-addr\(check|val)\mask\val
       INVERT AND
     ELSE
       DROP
     THEN
-  LOOP R> DROP NIP FALSE ;
+  LOOP
+  \ srow-addr\check\mask
+  NIP NIP FALSE ;
 
 : set-vert-mask ( xcol mask -- failure-flag )
   \ If 'mask' is zero. just return a success indication.
@@ -638,7 +647,13 @@ $1000 , $2000 , $4000 , $8000 ,
   rl+                          \ Increment recursion level
 
   get-unresolved               \ Look for an unresolved spot
-  DUP 0= IF INVERT EXIT THEN   \ Problem solved
+  DUP 0= IF
+    solutions 1+!
+    stopon1st 0= IF
+      CR display-grid
+    THEN
+    INVERT EXIT
+  THEN                         \ Problem solved
 
   DUP @                        \ S: saddr\sval
   \ The list of set bits in TOS indicate the possibilities
@@ -654,18 +669,15 @@ $1000 , $2000 , $4000 , $8000 ,
 
       infer IF                 \ No inconsistencies detected
         RECURSE IF             \ Solution found
-          solutions 1+!
           stopon1st IF
             2DROP UNLOOP TRUE EXIT
-\         ELSE
-\           CR display-grid
           THEN
         THEN
       THEN
 
       \ Backtrack up to the last transaction boundary.
       BEGIN tstk-pop UNTIL
-      nbt 1+!              \ Increment #backtracks
+      nbt 1+!                  \ Increment #backtracks
     ELSE
       R> DROP
     THEN
@@ -691,7 +703,10 @@ $1000 , $2000 , $4000 , $8000 ,
 
   stopon1st IF
     speculate DROP
+
+    PAGE display-grid
     31 15 AT-XY
+
     CR ." Maximum recursion level: " reclevmax ?
     CR ." Problem solved at level: " reclev ?
     CR ." 'countbits' called " ncb 2@ <# #S #> TYPE ."  times"
@@ -702,5 +717,5 @@ $1000 , $2000 , $4000 , $8000 ,
     CR solutions ? ." solution(s) found"
   THEN ;
 
-main 7 EMIT wasteit
+main \ 7 EMIT wasteit
 
