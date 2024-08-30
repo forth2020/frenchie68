@@ -139,6 +139,10 @@ $1000 , $2000 , $4000 , $8000 ,
 
 : 2^n ( n -- 2^n ) CELLS exptbl + @ ;
 
+\ Contributed by Bob Armstrong.
+: pow2? ( n -- f )
+  DUP DUP 1- AND 0= SWAP 0<> AND ;
+
 \ -------------------------------------------------------------
 \ Incremental grid visualization.
 
@@ -149,9 +153,7 @@ $1000 , $2000 , $4000 , $8000 ,
   \ No visualization if looking for for multiple solutions.
   stopon1st 0= IF EXIT THEN
 
-  OVER countbits 1 <> IF
-    wildc
-  ELSE                         \ Spot value is known
+  OVER pow2? IF                \ Spot value is known
     OVER 16 0 DO
       DUP I 2^n = IF
         DROP I
@@ -159,13 +161,15 @@ $1000 , $2000 , $4000 , $8000 ,
         + LEAVE
       THEN
     LOOP
+  ELSE
+    wildc
   THEN
 
   \ S: val\saddr\char-from-val
   \ Return immediately if char==wildc and bitcount(saddr@)<>1
   \ This corresponds to a situation where a given cell's mask
   \ changes but the spot remains unresolved.
-  OVER @ countbits 1 <> OVER wildc = AND IF
+  OVER @ pow2? 0= OVER wildc = AND IF
     DROP EXIT
   THEN
 
@@ -212,8 +216,9 @@ $1000 , $2000 , $4000 , $8000 ,
 
   \ Check whether we are going from resolved to unresolved.
   \ If so increment 'unknowns' accordingly.
-  DUP @ countbits 1 = IF       \ S: beg-flg\bitmsk\saddr
-    OVER countbits 1 > IF
+  DUP @ pow2? IF               \ S: beg-flg\bitmsk\saddr
+    \ XXX: this assumes 'bitmsk' is NZ!!!
+    OVER pow2? 0= IF
       unknowns 1+!
     THEN
   THEN
@@ -324,8 +329,7 @@ $1000 , $2000 , $4000 , $8000 ,
   #27 EMIT ." [?25h" ;
 
 : mask>char ( mask -- char )
-  DUP countbits                \ S: mask\nbits
-  1 = IF
+  DUP pow2? IF                 \ S: mask\nbits
     16 0 DO
       DUP I 2^n = IF
         DROP I UNLOOP
@@ -359,7 +363,7 @@ $1000 , $2000 , $4000 , $8000 ,
   THEN
 
   \ This update resolves the spot point to by 'saddr'.
-  OVER countbits 1 = IF unknowns 1-! THEN
+  OVER pow2? IF unknowns 1-! THEN
 
   logtrans IF                  \ Transaction is logged
     FALSE OVER tstk-push
@@ -379,7 +383,7 @@ $1000 , $2000 , $4000 , $8000 ,
       3 PICK I +               \ Absolute col#
       3 PICK J + 16* +
       CELLS grid +
-      @ DUP countbits 1 = IF
+      @ DUP pow2? IF
         \ S: xcol\yrow\check\mask\val
         ROT OVER  \ S: xcol\yrow\mask\val\check\val
         2DUP AND  \ S: xcol\yrow\mask\val\check\val\(check&val)
@@ -412,7 +416,9 @@ $1000 , $2000 , $4000 , $8000 ,
       OVER I +                 \ Absolute col#
       OVER J + 16* +
       CELLS grid +             \ S: mask\xcol\yrow\saddr
-      DUP @ DUP countbits 1 <> IF
+      DUP @ DUP pow2? IF
+        2DROP
+      ELSE
         \ S: mask\xcol\yrow\saddr\sval
         4 PICK AND           \ S: mask\xcol\yrow\saddr\sval-new
         ?DUP IF
@@ -420,8 +426,6 @@ $1000 , $2000 , $4000 , $8000 ,
         ELSE \ Mask application would result in zero spot value
           2DROP 2DROP UNLOOP UNLOOP TRUE EXIT
         THEN
-      ELSE
-        2DROP
       THEN
       \ S: mask\xcol\yrow
     LOOP
@@ -457,7 +461,7 @@ $1000 , $2000 , $4000 , $8000 ,
   $FFFF                        \ Initial mask
   16 0 DO                      \ Iterate over columns
     \ srow-addr\check\mask
-    2 PICK I CELLS + @ DUP countbits 1 = IF
+    2 PICK I CELLS + @ DUP pow2? IF
       \ srow-addr\check\mask\val
       ROT OVER \ srow-addr\mask\val\check\val
       2DUP AND \ srow-addr\mask\val\check\val\(check&val)
@@ -484,7 +488,9 @@ $1000 , $2000 , $4000 , $8000 ,
   SWAP
   16* CELLS grid +
   16 0 DO                      \ Iterate over columns
-    DUP @ DUP countbits 1 <> IF
+    DUP @ DUP pow2? IF
+      DROP
+    ELSE
       \ S: mask\saddr\sval
       2 PICK AND               \ S: mask\saddr\sval-new
       ?DUP IF
@@ -492,8 +498,6 @@ $1000 , $2000 , $4000 , $8000 ,
       ELSE \ Mask application would result in zero spot value
         2DROP UNLOOP TRUE EXIT
       THEN
-    ELSE
-      DROP
     THEN
     \ S: mask\saddr
     CELL+
@@ -509,7 +513,7 @@ $1000 , $2000 , $4000 , $8000 ,
   $FFFF                        \ Initial mask
   16 0 DO                      \ Iterate over rows
     \ scol-addr\check\mask
-    2 PICK I 16* CELLS + @ DUP countbits 1 = IF
+    2 PICK I 16* CELLS + @ DUP pow2? IF
       \ scol-addr\check\mask\val
       ROT OVER \ scol-addr\mask\val\check\val
       2DUP AND \ scol-addr\mask\val\check\val\(check&val)
@@ -536,7 +540,9 @@ $1000 , $2000 , $4000 , $8000 ,
   SWAP
   CELLS grid +                 \ Beginning of column address
   16 0 DO                      \ Iterate over rows
-    DUP @ DUP countbits 1 <> IF
+    DUP @ DUP pow2? IF
+      DROP
+    ELSE
       \ S: mask\saddr\sval
       2 PICK AND               \ S: mask\saddr\sval-new
       ?DUP IF
@@ -544,8 +550,6 @@ $1000 , $2000 , $4000 , $8000 ,
       ELSE \ Mask application would result in zero spot value
         2DROP UNLOOP TRUE EXIT
       THEN
-    ELSE
-      DROP
     THEN
     \ S: mask\saddr
     16 CELLS +
