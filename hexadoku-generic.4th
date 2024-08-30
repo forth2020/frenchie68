@@ -82,7 +82,7 @@ IFGF : 2cells/ 4 RSHIFT ;
 \ -------------------------------------------------------------
 \ Variables and constants.
 
-TRUE  CONSTANT stopon1st       \ User tunable. No vis. if FALSE
+FALSE CONSTANT stopon1st       \ User tunable. No vis. if FALSE
 FALSE VALUE logtrans   \ If NZ, log changes to the trans. stack
 BL CONSTANT wildc
 VARIABLE unknowns
@@ -661,7 +661,6 @@ $1000 , $2000 , $4000 , $8000 ,
 
       infer IF                 \ No inconsistencies detected
         RECURSE IF             \ Solution found
-          solutions 1+!
           stopon1st IF
             2DROP UNLOOP TRUE EXIT
           THEN
