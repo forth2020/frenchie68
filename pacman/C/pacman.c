@@ -265,6 +265,14 @@ key(void) {
   return val;
 }
 
+// Drain terminal output (DECXCPR).
+void
+tty_drain(void) {
+  fputs("\x1B[5n", stdout);
+  (void)key(); (void)key();              // Skip CSI in the reply
+  (void)key(); (void)key();              // 0n is OK, 3n indicates a malfunction
+}
+
 // ------------------------------------------------------------
 // VT420/VT340 specific material.
 
@@ -449,7 +457,10 @@ init_signal_processing(void) {
   (void)sigemptyset(&sac.sa_mask);
   sac.sa_handler = (void (*)(int))finalize;
   sac.sa_flags = 0;
-  (void)sigaction(SIGINT, &sac, NULL);
+  (void)sigaction(SIGINT,  &sac, NULL);
+  (void)sigaction(SIGTERM, &sac, NULL);
+  (void)sigaction(SIGABRT, &sac, NULL);
+  (void)sigaction(SIGSEGV, &sac, NULL);
 }
 
 void
@@ -1782,6 +1793,16 @@ gm_prv_update(void) {
   gm_prv = gm_cur;
 }
 
+// All ghosts adopt the direction opposite to the current one.
+void
+gm_allghosts_reverse(void) {
+  int i;
+
+  for (i = 1; i < NENTITY; i++)
+    ((entity *)entvec[i])->revflg = 1;
+  bell();
+}
+
 void
 gm_switchto(ghostmode_t mode) {
   int i;
@@ -1791,11 +1812,8 @@ gm_switchto(ghostmode_t mode) {
 
   // If switching away from chase or scatter modes, signal
   // direction reversal request to all ghost instances.
-  if (gm_cur != mode_fright) {
-    for (i = 1; i < NENTITY; i++)
-      ((entity *)entvec[i])->revflg = 1;
-    bell();
-  }
+  if (gm_cur != mode_fright)
+    gm_allghosts_reverse();
 
   gm_prv_update();
   gm_cur = mode;
@@ -1803,6 +1821,8 @@ gm_switchto(ghostmode_t mode) {
 
 void
 super_enter(void) {
+  gm_allghosts_reverse();           // HackerB9's request
+
   // We might want to return immediately depending on 'gamlev'
   if (gm_cur == mode_fright) {      // Already frightened
     fright_timer = SUPER_CLKCYCLES; // Be kind, reset the timer!
@@ -1864,6 +1884,7 @@ _main(void) {
       dot_initial_grid();
       update_level();
       level_entry_inits();
+      tty_drain();
       continue;
     }
 

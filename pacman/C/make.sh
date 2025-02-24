@@ -19,7 +19,7 @@ SunOS) # Verified under OpenSolaris 09/06--gcc 3.4.3
 
 Linux) # Linux, gcc >= 7.5.0
   CFLAGS="-DFORCE_CURSES"
-  AFLAGS="-m32 -march=i686"
+# AFLAGS="-m32 -march=i686"    # Please uncomment for 32 bit support
   LDFLAGS="-lncurses -ltinfo"
 
   # Targetting the VT420

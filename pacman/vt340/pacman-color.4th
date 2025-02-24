@@ -170,6 +170,14 @@ $1B CONSTANT esc
 : default-sgr csi ." 0m" ;
 
 \ -------------------------------------------------------------
+\ Drain terminal output (DECXCPR).
+
+: tty-drain ( -- )
+  csi ." 5n"
+  KEY KEY 2DROP   \ Skip CSI in the reply
+  KEY KEY 2DROP ; \ 0n is OK, 3n indicates a malfunction
+
+\ -------------------------------------------------------------
 \ Device Status Report/Cursor Position Report (DSR/CPR).
 \ VT100 control sequences.
 
@@ -1186,13 +1194,6 @@ IFGF warnings off
   7 EMIT
   custom-charset-select ;
 IFGF warnings on
-
-\ Referenced when using the "pacman defense"--killing a ghost.
-: 2bell ( -- )
-  silent ?EXIT
-  default-charset-select
-  7 EMIT 7 EMIT
-  custom-charset-select ;
 
 : initvars ( -- )
   0 serialno !          \ Entity serial number counter
@@ -2393,6 +2394,13 @@ IFGF TYPE [CHAR] ] EMIT SPACE
     ." gmt: " gm_timer @  4 .R
   ;
 
+\ All ghosts adopt the direction opposite to the current one.
+: gm-allghosts-reverse ( -- )
+  entvec CELL+ #ghosts 0 ?DO
+    DUP @ e.revflg TRUE SWAP C!
+    CELL+
+  LOOP DROP bell ;
+
 \ In any given level, this should be called only after
 \ level-entry-inits.
 : gm-switchto ( mode -- )
@@ -2402,17 +2410,14 @@ IFGF TYPE [CHAR] ] EMIT SPACE
 
   \ If switching away from chase or scatter modes, signal
   \ direction reversal request to all ghost instances.
-  gm_cur mode_fright <> IF
-    entvec CELL+ #ghosts 0 ?DO
-      DUP @ e.revflg TRUE SWAP C!
-      CELL+
-    LOOP DROP bell
-  THEN
+  gm_cur mode_fright <> IF gm-allghosts-reverse THEN
 
   gm_prv-update
   TO gm_cur ;
 
 : _super-enter ( -- )
+  gm-allghosts-reverse             \ HackerB9's request
+
   \ We might want to EXIT immediately depending on 'gamlev'
   gm_cur mode_fright = IF          \ Already frightened
     super-clkcycles fright_timer ! \ Be kind, reset the timer!
@@ -2465,6 +2470,7 @@ IFGF TYPE [CHAR] ] EMIT SPACE
       .initial-grid
       update-level
       level-entry-inits
+      tty-drain
     ELSE
       \ Ghost mode handling.
       gm_cur mode_fright = IF
