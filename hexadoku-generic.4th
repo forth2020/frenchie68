@@ -1,6 +1,6 @@
 \ Hexadoku Solver. Francois Laagel.                May 11, 2023
 
-\ The interesting thing about this algorithm is that is does
+\ The interesting thing about this algorithm is that it does
 \ not work by looking for a solution. It works by systematic
 \ refutation of possibilities leading to constraint violations.
 \ Eventually, a solution might emerge--or not. There could be
@@ -20,8 +20,9 @@
 \ be run SwiftForth 3.12.0 (4 byte cell), VFX Forth 64
 \ 5.41 or Z79Forth/A.
 \
-\ "[Agent Smith] Never send a human to do a machine's job."
-\ from "The Matrix" movie, 1999.
+\ "There's no excuse for not writing programs that are
+\ portable." Captain Grace Hopper, 1982.
+\ https://www.youtube.com/watch?v=_bP14OzIJWI
 
 \ -------------------------------------------------------------
 \ Glossary:
@@ -84,8 +85,7 @@ MARKER wasteit
 \ -------------------------------------------------------------
 \ Variables and constants.
 
-TRUE  CONSTANT stopon1st       \ User tunable. No vis. if FALSE
-FALSE CONSTANT viz             \ Real-time progress viz?
+FALSE CONSTANT stopon1st       \ User tunable. No vis. if FALSE
 FALSE VALUE logtrans   \ If NZ, log changes to the trans. stack
 BL CONSTANT wildc
 VARIABLE unknowns
@@ -94,7 +94,7 @@ VARIABLE solutions
 CREATE grid 256 CELLS ALLOT    \ 16x16 is the problem size
 
 \ A transaction is the unit of rollbacks (undos). It is defined
-\ as a set of grid saved states between the time we make a
+\ as the set of grid saved states between the time we make a
 \ speculative choice and the time when a constraint violation
 \ is detected or when a nested speculative choice is made
 \ (excluded).
@@ -103,11 +103,11 @@ CREATE grid 256 CELLS ALLOT    \ 16x16 is the problem size
 CREATE tstack tstk-nitems 2* CELLS ALLOT
 HERE CONSTANT tstk-bottom
 \ Each entry on the transaction stack is:
-\ TOS:  saved-bitmask		1 CELL
-\ TOS+1: mxxx.xxxx:yyyy.yyyy	1 CELL
-\ 	bit #15:	beginning of transaction marker.
-\ 	bits #14-8:	xcol: 0..15
-\ 	bit #7-0:	yrow: 0..15
+\ TOS:  saved-bitmask           1 CELL
+\ TOS+1: mxxx.xxxx:yyyy.yyyy    1 CELL
+\       bit #15:        beginning of transaction marker.
+\       bits #14-8:     xcol: 0..15
+\       bit #7-0:       yrow: 0..15
 VARIABLE tstkp
 
 \ Statistical data support.
@@ -117,10 +117,10 @@ VARIABLE reclevmax             \ Maximum recursion level
 VARIABLE nbt                   \ # of backtracks
 CREATE ncb 2 CELLS ALLOT       \ # of calls to countbits double
 
+: d1+! DUP 2@ 1. D+ ROT 2! ;
+
 \ -------------------------------------------------------------
 \ Bit count utilities.
-
-: d1+! DUP 2@ 1. D+ ROT 2! ;
 
 \ Adapted from "Hacker's Delight" Second Edition
 \ by Henry S. Warren Jr., Edt by Addison-Wesley
@@ -155,8 +155,8 @@ $1000 , $2000 , $4000 , $8000 ,
   grid - cell/ 16/mod ;
 
 : |visual ( val saddr -- val saddr )
-  \ No visualization if benchmarking.
-  viz 0= IF EXIT THEN
+  \ No visualization if looking for multiple solutions.
+  stopon1st 0= IF EXIT THEN
 
   OVER pow2? IF                \ Spot value is known
     OVER 16 0 DO
@@ -207,22 +207,22 @@ $1000 , $2000 , $4000 , $8000 ,
   tstk-bottom tstkp @ - 2cells/ 0=
     ABORT" Transaction stack underflow"
 
-  tstkp @ DUP @ >R             \ R: bitmsk, S: tsktp@
+  tstkp @ DUP @ >R             \ R: bitmask, S: tsktp@
   CELL+ tstkp !
 
-  tstkp @ DUP @ >R             \ R: bitmsk\mX:Y, S: tsktp@
+  tstkp @ DUP @ >R             \ R: bitmask\mX:Y, S: tsktp@
   CELL+ tstkp !
 
-  R> DUP $8000 AND             \ R: bitmsk, S: mX:Y\beg-flg
-  SWAP $7FFF AND               \ R: bitmsk, S: beg-flg\X\Y
+  R> DUP $8000 AND             \ R: bitmask, S: mX:Y\begin-flg
+  SWAP $7FFF AND               \ R: bitmask, S: begin-flg\X\Y
 
-  DUP 8 RSHIFT SWAP $FF AND    \ R: bitmsk, S: beg-flg\X\Y
-  16* + CELLS grid +           \ R: bitmsk, S: beg-flg\saddr
-  R> SWAP                      \ S: beg-flg\bitmsk\saddr
+  DUP 8 RSHIFT SWAP $FF AND    \ R: bitmask, S: begin-flg\X\Y
+  16* + CELLS grid +           \ R: bitmask, S: begin-flg\saddr
+  R> SWAP                      \ S: begin-flg\bitmask\saddr
 
   \ Check whether we are going from resolved to unresolved.
   \ If so increment 'unknowns' accordingly.
-  DUP @ pow2? IF               \ S: beg-flg\bitmsk\saddr
+  DUP @ pow2? IF               \ S: begin-flg\bitmask\saddr
     \ XXX: this assumes 'bitmsk' is NZ!!!
     OVER pow2? 0= IF
       unknowns 1+!
@@ -282,7 +282,7 @@ $1000 , $2000 , $4000 , $8000 ,
 \ S" ....:....:....:...." 14 initline
 \ S" ....:....:....:...." 15 initline
 
-  \ Original design.
+  \ Original design (1.2+M backtracks).
   S" 0...:.5.7:.9.B:.DEF" 0  initline
   S" 45..:C..F:...2:..AB" 1  initline
   S" ..A.:..2.:.D..:.5.7" 2  initline
@@ -442,8 +442,8 @@ $1000 , $2000 , $4000 , $8000 ,
 \ 4x4 block logic: either a spot is known or the list
 \ of alternatives must exclude all known spots values.
 : reduce4x4 ( -- failure-flag )
-  4 0 DO              \ Iterate over quadrant rows
-    4 0 DO            \ Iterate over quadrant columns
+  4 0 DO                       \ Iterate over quadrant rows
+    4 0 DO                     \ Iterate over quadrant columns
       I 4 * J 4 *
       2DUP getmask4 IF
         2DROP UNLOOP UNLOOP TRUE EXIT
@@ -511,7 +511,7 @@ $1000 , $2000 , $4000 , $8000 ,
     \ S: mask\saddr
     CELL+
   LOOP
-  2DROP FALSE ; 
+  2DROP FALSE ;
 
 \ -------------------------------------------------------------
 \ Vertical exclusion/filtering.
@@ -656,8 +656,8 @@ $1000 , $2000 , $4000 , $8000 ,
     stopon1st 0= IF
       CR display-grid
     THEN
-    INVERT EXIT
-  THEN                         \ Problem solved
+    INVERT EXIT                \ Problem solved
+  THEN
 
   DUP @                        \ S: saddr\sval
   \ The list of set bits in TOS indicate the possibilities
@@ -707,12 +707,12 @@ $1000 , $2000 , $4000 , $8000 ,
 
   speculate DROP
 
-  PAGE display-grid
-  31 15 AT-XY
-
   stopon1st IF
+    31 15 AT-XY
     CR ." Maximum recursion level: " reclevmax ?
     CR ." Problem solved at level: " reclev ?
+  ELSE
+    CR solutions ? ." solution(s) found"
   THEN
   CR ." 'countbits' called " ncb 2@ <# #S #> TYPE ."  times"
   CR ." Backtracked " nbt ? ." times"
